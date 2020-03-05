@@ -1,22 +1,33 @@
 from samba.agents.agent import BaseAgent
 from samba.infrastructure.logger import Logger
 
-# TODO (yarden): Take parameters explicitly and not as a dictionary of params.
+
 class RLTrainer(object):
-    def __init__(self, agent, environemnt, params):
-        self.params = params
-        self.logger = Logger(self.params['logdir'])
+    def __init__(self,
+                 agent,
+                 environemnt,
+                 seed,
+                 epochs,
+                 logger_kwargs,
+                 log_frequency,
+                 video_log_frequency):
         self.agent = agent
         self.environment = environemnt
+        self.seed = seed
+        self.epochs = epochs
+        self.logger = Logger(**logger_kwargs)
+        self.log_frequency = log_frequency
+        self.video_log_frequency = video_log_frequency
 
     def train(self):
-        for epoch in range(self.params['epochs']):
+        for epoch in range(self.epochs):
+            print("Training epoch {}.".format(epoch))
             self.agent.interact(self.environment)
             self.agent.update_model()
             self.agent.update_policy()
-            if epoch % self.params['log_frequency'] == 0:
+            if epoch % self.log_frequency == 0:
                 self.log(self.agent.report())
-            if epoch % self.params['video_log_frequency'] == 0:
+            if epoch % self.video_log_frequency == 0:
                 self.log_video(self.agent.say_cheese())
 
     def play_trained_model(self):
@@ -32,8 +43,11 @@ class RLTrainer(object):
         self.logger.flush()
 
     def log_video(self, trajectory_records, epoch):
+        """
+        Logs videos from rendered trajectories.
+        """
         self.logger.log_paths_as_videos(
-            trajectory_records, epoch, self.params['fps'],
-            len(trajectory_records), self.params['max_video_length']
+            trajectory_records, epoch,
+            len(trajectory_records)
         )
 

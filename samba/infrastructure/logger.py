@@ -8,8 +8,15 @@ class Logger:
     (https://github.com/yardenas/berkeley-deep-rl/tree/f741338c085ee5b329f3c9dd05e93e89bc43574a)
     and used for dumping statistics to to TensorBoard readable file.
     """
-    def __init__(self, log_dir, n_logged_samples=10, summary_writer=None):
+    def __init__(self,
+                 log_dir,
+                 fps,
+                 max_video_length,
+                 n_logged_samples=10,
+                 summary_writer=None):
         self._log_dir = log_dir
+        self.fps = fps,
+        self.max_video_length = max_video_length
         print('########################')
         print('logging outputs to ', log_dir)
         print('########################')
@@ -27,11 +34,11 @@ class Logger:
         assert(len(image.shape) == 3)  # [C, H, W]
         self._summ_writer.add_image('{}'.format(name), image, step)
 
-    def log_video(self, video_frames, name, step, fps=10):
+    def log_video(self, video_frames, name, step):
         assert len(video_frames.shape) == 5, "Need [N, T, C, H, W] input tensor for video logging!"
-        self._summ_writer.add_video('{}'.format(name), video_frames, step, fps=fps)
+        self._summ_writer.add_video('{}'.format(name), video_frames, step, fps=self.fps)
 
-    def log_paths_as_videos(self, paths, step, max_videos_to_save=2, fps=10, video_title='video'):
+    def log_paths_as_videos(self, paths, step, max_videos_to_save=2, video_title='video'):
         # reshape the rollouts
         videos = [np.transpose(p['image_obs'], [0, 3, 1, 2]) for p in paths]
         # max rollout length
@@ -47,7 +54,7 @@ class Logger:
                 videos[i] = np.concatenate([videos[i], padding], 0)
         # log videos to tensorboard event file
         videos = np.stack(videos[:max_videos_to_save], 0)
-        self.log_video(videos, video_title, step, fps=fps)
+        self.log_video(videos, video_title, step, fps=self.fps)
 
     def log_figures(self, figure, name, step, phase):
         """figure: matplotlib.pyplot figure handle"""

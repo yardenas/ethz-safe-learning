@@ -1,0 +1,1 @@
+from samba.agents.agent import BaseAgent
