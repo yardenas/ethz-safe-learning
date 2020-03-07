@@ -1,4 +1,5 @@
 # ethz-safe-learning
+## SIMBA: Safe Informative Model Based Agent
 
 ### Installing mujoco_py
 Make sure that you're in a conda python 3.6 environment
