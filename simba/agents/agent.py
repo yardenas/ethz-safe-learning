@@ -5,9 +5,8 @@ from simba.infrastructure.replay_buffer import ReplayBuffer, path_summary, path_
 class BaseAgent(object):
     """
     A base class for RL agents. An RL agent inherits from this
-    class an implements a concrete RL algorithm.
+    class and implements a concrete RL algorithm.
     """
-
     def __init__(self,
                  model,
                  policy,

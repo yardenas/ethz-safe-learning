@@ -4,12 +4,12 @@ from setuptools import setup
 import sys
 
 assert sys.version_info.major == 3 and sys.version_info.minor >= 6, \
-    "SAMBA relies on Safety Gym which is designed to work with Python 3.6 and greater. " \
+    "SIMBA relies on Safety Gym which is designed to work with Python 3.6 and greater. " \
     + "Please install it before proceeding."
 
 setup(
-    name='samba',
-    packages=['samba'],
+    name='simba',
+    packages=['simba'],
     install_requires=[
         'safety-gym==0.0.0',
         'gym~=0.15.3',
