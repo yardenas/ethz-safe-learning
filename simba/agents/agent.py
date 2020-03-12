@@ -1,5 +1,5 @@
-import tensorflow as tf
 from simba.infrastructure.replay_buffer import ReplayBuffer, path_summary, path_length
+from simba.infrastructure.ensembled_anchored_nn import make_session
 
 
 class BaseAgent(object):
@@ -11,18 +11,20 @@ class BaseAgent(object):
                  model,
                  policy,
                  train_batch_size,
-                 eval_batch_size,
+                 train_interaction_steps,
+                 eval_interaction_steps,
                  episode_length,
                  replay_buffer_size,
                  **kwargs):
         self.model = model
         self.policy = policy
         self.train_batch_size = train_batch_size
-        self.eval_batch_size = eval_batch_size
+        self.train_interaction_steps = train_interaction_steps
+        self.eval_batch_size = eval_interaction_steps
         self.episode_length = episode_length
         self.replay_buffer = ReplayBuffer(replay_buffer_size)
-        self.sess = self._make_session()
-        self._build_graph()
+        self.sess = make_session()
+        self.build_graph()
 
     def interact(self, environment):
         """
@@ -54,18 +56,28 @@ class BaseAgent(object):
     def _interact(self, environment):
         raise NotImplementedError
 
+    def _create_fit_feed_dict(
+            self,
+            observations,
+            actions,
+            rewards,
+            next_observations,
+            terminals):
+        raise NotImplementedError
+
+    def _create_prediction_feed_dict(
+            self,
+            observations,
+            actions):
+        raise NotImplementedError
+
     def _report(self):
         raise NotImplementedError
 
-    def _build_graph(self):
+    def build_graph(self):
         print("Building computational graph.")
         self.model.build(self.sess)
         self.policy.build(self.sess)
-
-    def _make_session(self):
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        return tf.Session(config=config)
 
     def sample_trajectories(
             self,

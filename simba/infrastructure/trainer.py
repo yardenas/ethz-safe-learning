@@ -20,17 +20,19 @@ class RLTrainer(object):
         self.video_log_frequency = video_log_frequency
 
     def train(self):
+        self.agent.build_graph()
         for epoch in range(self.epochs):
             print("Training epoch {}.".format(epoch))
             self.agent.interact(self.environment)
             self.agent.update_model()
             self.agent.update_policy()
             if epoch % self.log_frequency == 0:
-                self.log(self.agent.report())
+                self.log(self.agent.report(), epoch)
             if epoch % self.video_log_frequency == 0:
-                self.log_video(self.agent.say_cheese())
+                self.log_video(self.agent.say_cheese(), epoch)
 
     def play_trained_model(self):
+        # self.agent.load_graph()
         pass
 
     def log(self, report, epoch):

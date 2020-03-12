@@ -1,1 +1,1 @@
-from simba.agents.model import BaseModel
+from simba.models.model import BaseModel
