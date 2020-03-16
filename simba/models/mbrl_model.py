@@ -1,13 +1,13 @@
 import tensorflow as tf
 from simba.models import BaseModel
-from simba.infrastructure.ensembled_anchored_nn import build_mlp
+from simba.infrastructure.ensembled_anchored_nn import InitializationAnchoredNN
 
 
 class MBRLModel(BaseModel):
     def __init(self,
                action_space_dimension,
                observation_space_dimension,
-               approximator,
+               ensemble_size,
                **kwargs):
         # TODO (yarden): don't forget to make the predictions the mean and variance of a normal distribution.
         super().__init__(**kwargs)
@@ -34,23 +34,6 @@ class MBRLModel(BaseModel):
 
     def build(self):
         pass
-
-    def define_prediction_op(self):
-        inputs = tf.concat([self.observations_ph, self.actions_ph], axis=1)
-        assert tf.shape(inputs) == tf.shape(self.input_mean_ph) == tf.shape(self.input_std_ph)
-        standardized_inputs = tf.divide(
-            (inputs - self.input_mean_ph), self.input_std_ph + 1e-8)
-        self.prediction_op = build_mlp(standardized_inputs, self.out)
-
-
-    def define_traininig_op(self):
-        labels = self.next_observations_ph - self.observations_ph
-        assert self.prediction_op is not None
-        self.loss = tf.losses.mean_squared_error(
-            labels=labels, predictions=self.prediction_op)
-
-
-
 
     def fit(self, fit_feed_dict):
         pass
