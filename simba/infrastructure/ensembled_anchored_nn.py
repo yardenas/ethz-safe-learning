@@ -17,8 +17,8 @@ class InitializationAnchoredNN(object):
                  init_std_weights,
                  data_noise):
         self._sess = sess
-        self.inputs_ph = tf.placeholder(tf.float32, [None, None, input_dim], name=(scope + 'inputs'))
-        self.targets_ph = tf.placeholder(tf.float32, [None, targets_dim], name=(scope + 'targets'))
+        self.inputs_ph = tf.placeholder(dtype=tf.float32, shape=(None, input_dim), name=(scope + 'inputs'))
+        self.targets_ph = tf.placeholder(dtype=tf.float32, shape=(None, targets_dim), name=(scope + 'targets'))
         self._layers = []
         layer = self.inputs_ph
         # Define forward-pass.
@@ -87,15 +87,15 @@ class InitializationAnchoredNN(object):
                 )
 
     def fit(self, inputs, targets):
-        loss, _ = self.sess.run([self.loss, self.training_op],
-                                feed_dict=dict(inputs_ph=inputs,
-                                               targets_ph=targets))
+        loss, _ = self._sess.run([self.loss, self.training_op],
+                                 feed_dict={self.inputs_ph: inputs,
+                                            self.targets_ph: targets})
         return loss
 
     def predict(self, inputs):
-        mu, log_std = self.sess.run([self._mu, self._log_std],
-                                    feed_dict=dict(inputs_ph=inputs))
-        return tf.distributions.Normal(mu, log_std).sample()
+        mu, log_std = self._sess.run([self._mu, self._log_std],
+                                     feed_dict={self.inputs_ph: inputs})
+        return tf.distributions.Normal(mu, log_std).sample().eval()
 
     @property
     def predict_op(self):
