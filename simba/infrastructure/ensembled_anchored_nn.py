@@ -127,11 +127,11 @@ class MLPEnsemble(object):
         training_ops = [mlp.training_op for mlp in self.mlps]
         loss_ops = [mlp.loss for mlp in self.mlps]
         # Create data set for each mlp.
-        rand_indices_per_mlp = [np.random.permutation(inputs.shape[0]) for _ in range(self.ensemble_size)]
         losses = np.array([])
         n_batches = int(inputs.shape[0] / self.batch_size)
         for _ in range(self.epochs):
             average_loss_per_mlp = np.zeros(self.ensemble_size)
+            rand_indices_per_mlp = [np.random.permutation(inputs.shape[0]) for _ in range(self.ensemble_size)]
             for batch_index in range(n_batches):
                 feed_dict = dict()
                 for i, mlp in enumerate(self.mlps):
