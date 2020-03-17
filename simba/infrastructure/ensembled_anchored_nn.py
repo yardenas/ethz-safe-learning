@@ -17,8 +17,8 @@ class InitializationAnchoredNN(object):
                  init_std_weights,
                  data_noise):
         self._sess = sess
-        self.inputs_ph = tf.placeholder(dtype=tf.float32, shape=(None, input_dim), name=(scope + 'inputs'))
-        self.targets_ph = tf.placeholder(dtype=tf.float32, shape=(None, targets_dim), name=(scope + 'targets'))
+        self.inputs_ph = tf.placeholder(dtype=tf.float32, shape=(None, input_dim), name=(scope + '/inputs'))
+        self.targets_ph = tf.placeholder(dtype=tf.float32, shape=(None, targets_dim), name=(scope + '/targets'))
         self._layers = []
         layer = self.inputs_ph
         # Define forward-pass.
@@ -51,8 +51,8 @@ class InitializationAnchoredNN(object):
         #  line 414.
         # Define loss & train op.
         self._mu = self._layers[-2].apply(layer)
-        self._log_std = self._layers[-1].apply(layer)
-        prediction_dist = tf.distributions.Normal(self._mu, self._log_std)
+        self._sigma = self._layers[-1].apply(layer)
+        prediction_dist = tf.distributions.Normal(self._mu, self._sigma)
         self.loss = tf.reduce_mean(-prediction_dist.log_prob(self.targets_ph))
         # Anchor to weights to priors.
         if anchor:
@@ -93,13 +93,13 @@ class InitializationAnchoredNN(object):
         return loss
 
     def predict(self, inputs):
-        mu, log_std = self._sess.run([self._mu, self._log_std],
-                                     feed_dict={self.inputs_ph: inputs})
-        return tf.distributions.Normal(mu, log_std).sample().eval()
+        mu, sigma = self._sess.run([self._mu, self._sigma],
+                                   feed_dict={self.inputs_ph: inputs})
+        return tf.distributions.Normal(mu, sigma).sample().eval()
 
     @property
     def predict_op(self):
-        return self._mu, self._log_std
+        return self._mu, self._sigma
 
 
 class MLPEnsemble(object):
@@ -129,19 +129,23 @@ class MLPEnsemble(object):
         # Create data set for each mlp.
         losses = np.array([])
         n_batches = int(inputs.shape[0] / self.batch_size)
+        batches_per_mlp = []
+        for _ in range(self.ensemble_size):
+            rand_indices = np.random.permutation(inputs.shape[0])
+            input_batches = np.array(np.array_split(inputs[rand_indices], self.batch_size))
+            targets_batches = np.array(np.array_split(targets[rand_indices], self.batch_size))
+            batches_per_mlp.append((input_batches, targets_batches))
         for _ in range(self.epochs):
             average_loss_per_mlp = np.zeros(self.ensemble_size)
-            rand_indices_per_mlp = [np.random.permutation(inputs.shape[0]) for _ in range(self.ensemble_size)]
+            for i, batches_list in enumerate(batches_per_mlp):
+                shuffle_batches = np.random.permutation(n_batches)
+                batches_per_mlp[i] = (batches_list[0][shuffle_batches], batches_list[1][shuffle_batches])
             for batch_index in range(n_batches):
                 feed_dict = dict()
                 for i, mlp in enumerate(self.mlps):
                     feed_dict.update({
-                        mlp.inputs_ph:
-                            inputs[rand_indices_per_mlp[i]]
-                            [batch_index * self.batch_size:(batch_index + 1) * self.batch_size],
-                        mlp.targets_ph:
-                            targets[rand_indices_per_mlp[i]]
-                            [batch_index * self.batch_size:(batch_index + 1) * self.batch_size]
+                        mlp.inputs_ph: batches_per_mlp[i][0][batch_index],
+                        mlp.targets_ph: batches_per_mlp[i][1][batch_index]
                     })
                 _, loss_per_mlp = self.sess.run([training_ops, loss_ops], feed_dict=feed_dict)
                 average_loss_per_mlp += np.array(loss_per_mlp) / n_batches
@@ -154,7 +158,7 @@ class MLPEnsemble(object):
         feed_dict = {mlp.inputs_ph: inputs for mlp in self.mlps}
         out = self.sess.run(predict_ops, feed_dict=feed_dict)
         mus = np.array([prediction[0] for prediction in out])
-        log_stds = np.array([prediction[1] for prediction in out])
-        return tf.distributions.Normal(mus, log_stds).sample().eval()
+        sigmas = np.array([prediction[1] for prediction in out])
+        return tf.distributions.Normal(mus, sigmas).sample().eval()
 
 
