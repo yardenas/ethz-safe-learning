@@ -27,23 +27,22 @@ class InitializationAnchoredNN(object):
                 self._layers.append(tf.layers.Dense(
                     hidden_size,
                     activation=activation,
-                    # kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
-                    # bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
+                    kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
+                    bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
                 ))
                 layer = self._layers[-1].apply(layer)
             self._layers.append((
                 tf.layers.Dense(
                     1,
-                    # kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
-                    # bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
+                    kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
+                    bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
                 )
             ))
             self._layers.append((
                 tf.layers.Dense(
                     1,
-                    activation=lambda x: tf.nn.elu(x) + 1
-                    # kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
-                    # bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
+                    kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
+                    bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
                 )
             ))
         # TODO (yarden): might need here the softplus thing from
@@ -51,7 +50,10 @@ class InitializationAnchoredNN(object):
         #  line 414.
         # Define loss & train op.
         self._mu = self._layers[-2].apply(layer)
-        self._sigma = self._layers[-1].apply(layer)
+        log_sigma = tf.constant(np.exp(data_noise), dtype=tf.float32) - \
+                    tf.nn.softplus(tf.constant(np.exp(data_noise), dtype=tf.float32) - self._layers[-1].apply(layer))
+        log_sigma = tf.constant(-10.0) + tf.nn.softplus(log_sigma - tf.constant(-10.0))
+        self._sigma = tf.exp(log_sigma)
         prediction_dist = tf.distributions.Normal(self._mu, self._sigma)
         self.loss = tf.reduce_mean(-prediction_dist.log_prob(self.targets_ph))
         # Anchor to weights to priors.
@@ -95,6 +97,7 @@ class InitializationAnchoredNN(object):
     def predict(self, inputs):
         mu, sigma = self._sess.run([self._mu, self._sigma],
                                    feed_dict={self.inputs_ph: inputs})
+        print("Stds: ", sigma)
         return tf.distributions.Normal(mu, sigma).sample().eval()
 
     @property
@@ -113,6 +116,7 @@ class MLPEnsemble(object):
         self.ensemble_size = ensemble_size
         self.epochs = n_epochs
         self.batch_size = batch_size
+        self.log = True
         self.mlps = []
         for i in range(self.ensemble_size):
             self.mlps.append(InitializationAnchoredNN(
@@ -128,14 +132,14 @@ class MLPEnsemble(object):
         loss_ops = [mlp.loss for mlp in self.mlps]
         # Create data set for each mlp.
         losses = np.array([])
-        n_batches = int(inputs.shape[0] / self.batch_size)
+        n_batches = int(np.ceil(inputs.shape[0] / self.batch_size))
         batches_per_mlp = []
         for _ in range(self.ensemble_size):
             rand_indices = np.random.permutation(inputs.shape[0])
-            input_batches = np.array(np.array_split(inputs[rand_indices], self.batch_size))
-            targets_batches = np.array(np.array_split(targets[rand_indices], self.batch_size))
+            input_batches = np.array(np.array_split(inputs[rand_indices], n_batches))
+            targets_batches = np.array(np.array_split(targets[rand_indices], n_batches))
             batches_per_mlp.append((input_batches, targets_batches))
-        for _ in range(self.epochs):
+        for epoch in range(self.epochs):
             average_loss_per_mlp = np.zeros(self.ensemble_size)
             for i, batches_list in enumerate(batches_per_mlp):
                 shuffle_batches = np.random.permutation(n_batches)
@@ -150,7 +154,8 @@ class MLPEnsemble(object):
                 _, loss_per_mlp = self.sess.run([training_ops, loss_ops], feed_dict=feed_dict)
                 average_loss_per_mlp += np.array(loss_per_mlp) / n_batches
             np.append(losses, average_loss_per_mlp)
-            print("Loss is: ", average_loss_per_mlp)
+            if self.log and epoch % 20 == 0:
+                print('Epoch ', epoch,  ' | Losses =', loss_per_mlp)
         return losses
 
     def predict(self, inputs):
@@ -160,5 +165,4 @@ class MLPEnsemble(object):
         mus = np.array([prediction[0] for prediction in out])
         sigmas = np.array([prediction[1] for prediction in out])
         return tf.distributions.Normal(mus, sigmas).sample().eval()
-
 
