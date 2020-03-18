@@ -17,8 +17,8 @@ class InitializationAnchoredNN(object):
                  init_std_weights,
                  data_noise):
         self._sess = sess
-        self.inputs_ph = tf.placeholder(dtype=tf.float32, shape=(None, input_dim), name=(scope + '/inputs'))
-        self.targets_ph = tf.placeholder(dtype=tf.float32, shape=(None, targets_dim), name=(scope + '/targets'))
+        self.inputs_ph = tf.placeholder(dtype=tf.float64, shape=(None, input_dim), name=(scope + '/inputs'))
+        self.targets_ph = tf.placeholder(dtype=tf.float64, shape=(None, targets_dim), name=(scope + '/targets'))
         self._layers = []
         layer = self.inputs_ph
         # Define forward-pass.
@@ -34,6 +34,7 @@ class InitializationAnchoredNN(object):
             self._layers.append((
                 tf.layers.Dense(
                     1,
+                    activation=None,
                     kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
                     bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
                 )
@@ -41,18 +42,16 @@ class InitializationAnchoredNN(object):
             self._layers.append((
                 tf.layers.Dense(
                     1,
+                    activation=None,
                     kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
                     bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
                 )
             ))
-        # TODO (yarden): might need here the softplus thing from
-        #  https://github.com/kchua/handful-of-trials/blob/77fd8802cc30b7683f0227c90527b5414c0df34c/dmbrl/modeling/models/BNN.py
-        #  line 414.
         # Define loss & train op.
         self._mu = self._layers[-2].apply(layer)
-        log_sigma = tf.constant(np.exp(data_noise), dtype=tf.float32) - \
-                    tf.nn.softplus(tf.constant(np.exp(data_noise), dtype=tf.float32) - self._layers[-1].apply(layer))
-        log_sigma = tf.constant(-10.0) + tf.nn.softplus(log_sigma - tf.constant(-10.0))
+        log_sigma = tf.constant(np.exp(data_noise), dtype=tf.float64) - \
+                    tf.nn.relu(tf.constant(np.exp(data_noise), dtype=tf.float64) - self._layers[-1].apply(layer))
+        log_sigme = tf.constant(-10.0, dtype=tf.float64) + tf.nn.relu(log_sigma - tf.constant(-10.0, dtype=tf.float64))
         self._sigma = tf.exp(log_sigma)
         prediction_dist = tf.distributions.Normal(self._mu, self._sigma)
         self.loss = tf.reduce_mean(-prediction_dist.log_prob(self.targets_ph))
@@ -131,7 +130,7 @@ class MLPEnsemble(object):
         training_ops = [mlp.training_op for mlp in self.mlps]
         loss_ops = [mlp.loss for mlp in self.mlps]
         # Create data set for each mlp.
-        losses = np.array([])
+        losses = np.empty((self.epochs, self.ensemble_size))
         n_batches = int(np.ceil(inputs.shape[0] / self.batch_size))
         batches_per_mlp = []
         for _ in range(self.ensemble_size):
@@ -153,7 +152,7 @@ class MLPEnsemble(object):
                     })
                 _, loss_per_mlp = self.sess.run([training_ops, loss_ops], feed_dict=feed_dict)
                 average_loss_per_mlp += np.array(loss_per_mlp) / n_batches
-            np.append(losses, average_loss_per_mlp)
+            losses[epoch] = average_loss_per_mlp
             if self.log and epoch % 20 == 0:
                 print('Epoch ', epoch,  ' | Losses =', loss_per_mlp)
         return losses
@@ -164,5 +163,5 @@ class MLPEnsemble(object):
         out = self.sess.run(predict_ops, feed_dict=feed_dict)
         mus = np.array([prediction[0] for prediction in out])
         sigmas = np.array([prediction[1] for prediction in out])
-        return tf.distributions.Normal(mus, sigmas).sample().eval()
-
+        # return tf.distributions.Normal(mus, sigmas).sample().eval()
+        return mus, sigmas
