@@ -17,74 +17,89 @@ class InitializationAnchoredNN(object):
                  init_std_weights,
                  data_noise):
         self._sess = sess
-        self.inputs_ph = tf.placeholder(dtype=tf.float64, shape=(None, input_dim), name=(scope + '/inputs'))
-        self.targets_ph = tf.placeholder(dtype=tf.float64, shape=(None, targets_dim), name=(scope + '/targets'))
+        self.inputs_ph = tf.placeholder(dtype=tf.float32, shape=(None, input_dim), name=(scope + '/inputs'))
+        self.targets_ph = tf.placeholder(dtype=tf.float32, shape=(None, targets_dim), name=(scope + '/targets'))
         self._layers = []
         layer = self.inputs_ph
         # Define forward-pass.
         with tf.variable_scope(scope):
-            for _ in range(n_layers):
+            lambda_anchor = []
+            for i in range(n_layers):
+                if anchor:
+                    if i == 0:
+                        std_weights = init_std_weights
+                        std_bias = init_std_bias
+                    else:
+                        std_weights = 1. / np.sqrt(hidden_size)
+                        std_bias = std_weights
+                    kernel_initializer = tf.random_normal_initializer(0.0, std_weights)
+                    bias_initializer = tf.random_normal_initializer(0.0, std_bias)
+                    lambda_anchor.append((data_noise / (std_weights ** 2), data_noise / (std_bias ** 2)))
+                else:
+                    kernel_initializer = None
+                    bias_initializer = tf.zeros_initializer()
                 self._layers.append(tf.layers.Dense(
                     hidden_size,
                     activation=activation,
-                    kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
-                    bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
+                    kernel_initializer=kernel_initializer,
+                    bias_initializer=bias_initializer
                 ))
                 layer = self._layers[-1].apply(layer)
-            self._layers.append((
-                tf.layers.Dense(
-                    1,
-                    activation=None,
-                    kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
-                    bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
-                )
-            ))
-            self._layers.append((
-                tf.layers.Dense(
-                    1,
-                    activation=None,
-                    kernel_initializer=tf.random_normal_initializer(0.0, init_std_weights),
-                    bias_initializer=tf.random_normal_initializer(0.0, init_std_bias)
-                )
-            ))
-        # Define loss & train op.
-        self._mu = self._layers[-2].apply(layer)
-        log_sigma = tf.constant(np.exp(data_noise), dtype=tf.float64) - \
-                    tf.nn.relu(tf.constant(np.exp(data_noise), dtype=tf.float64) - self._layers[-1].apply(layer))
-        log_sigme = tf.constant(-10.0, dtype=tf.float64) + tf.nn.relu(log_sigma - tf.constant(-10.0, dtype=tf.float64))
-        self._sigma = tf.exp(log_sigma)
-        prediction_dist = tf.distributions.Normal(self._mu, self._sigma)
-        self.loss = tf.reduce_mean(-prediction_dist.log_prob(self.targets_ph))
-        # Anchor to weights to priors.
+            # Define loss & train op.
+            self._mu = tf.layers.dense(
+                layer,
+                1,
+                activation=activation,
+                kernel_initializer=kernel_initializer,
+                bias_initializer=bias_initializer
+            )
+            log_sigma = tf.layers.dense(
+                layer,
+                1
+            )
+            max_logsigma = tf.get_variable(
+                'max_logsigma', shape=(targets_dim, ), initializer=tf.constant_initializer(1.0 / np.sqrt(targets_dim)))
+            min_logsigma = tf.get_variable(
+                'min_logsigma', shape=(targets_dim, ), initializer=tf.constant_initializer(-10.0 / np.sqrt(targets_dim))
+            )
+            log_sigma = max_logsigma - tf.nn.softplus(
+                max_logsigma - log_sigma)
+            log_sigma = min_logsigma + tf.nn.softplus(
+                log_sigma - min_logsigma
+            )
+            self._sigma = tf.exp(log_sigma)
+            prediction_dist = tf.distributions.Normal(self._mu, self._sigma)
+            self.loss = tf.reduce_mean(-prediction_dist.log_prob(self.targets_ph)) + \
+                        0.01 * tf.reduce_sum(max_logsigma) - \
+                        0.01 * tf.reduce_sum(min_logsigma)
+            # Anchor to weights to priors.
         if anchor:
             weights = []
             for layer in self._layers:
                 weights += layer.weights
             init_weights = tf.variables_initializer(weights)
             self._sess.run(init_weights)
-            lambda_anchor_bias = data_noise / init_std_bias
-            lambda_anchor_weights = data_noise / init_std_weights
-            self._anchor_weights(lambda_anchor_bias, lambda_anchor_weights)
+            self._anchor_weights(lambda_anchor)
         self.training_op = tf.train.AdamOptimizer(learning_rate).\
             minimize(self.loss)
 
-    def _anchor_weights(self, lambda_anchor_bias, lambda_anchor_weights):
+    def _anchor_weights(self, lamba_anchors):
         """
         Based on "Uncertainty in Neural Networks: Approximately Bayesian Ensembling"
         https://arxiv.org/abs/1810.05546
         """
-        for layer in self._layers:
-            kernel = layer.kernel.eval().copy()
-            bias = layer.bias.eval().copy()
+        for i in range(len(self._layers)):
+            kernel = self._layers[i].kernel.eval().copy()
+            bias = self._layers[i].bias.eval().copy()
             self.loss += \
-                lambda_anchor_weights * tf.losses.mean_squared_error(
+                lamba_anchors[i][0] * tf.losses.mean_squared_error(
                     labels=kernel,
-                    predictions=layer.kernel
+                    predictions=self._layers[i].kernel
                 )
             self.loss += \
-                lambda_anchor_bias * tf.losses.mean_squared_error(
+                lamba_anchors[i][1] * tf.losses.mean_squared_error(
                     labels=bias,
-                    predictions=layer.bias
+                    predictions=self._layers[i].bias
                 )
 
     def fit(self, inputs, targets):
@@ -163,5 +178,4 @@ class MLPEnsemble(object):
         out = self.sess.run(predict_ops, feed_dict=feed_dict)
         mus = np.array([prediction[0] for prediction in out])
         sigmas = np.array([prediction[1] for prediction in out])
-        # return tf.distributions.Normal(mus, sigmas).sample().eval()
-        return mus, sigmas
+        return tf.distributions.Normal(mus, sigmas).sample().eval()
