@@ -22,9 +22,9 @@ class InitializationAnchoredNN(object):
         layer = self.inputs_ph
         for _ in range(3):
             layer = tf.layers.dense(inputs=layer, units=12, activation=tf.nn.tanh)
-        mu = tf.layers.dense(inputs=layer, units=1)
-        sigma = tf.layers.dense(inputs=layer, units=1, activation=lambda x: tf.nn.elu(x) + 1)
-        dist = tf.distributions.Normal(loc=mu, scale=sigma)
+        self._mu = tf.layers.dense(inputs=layer, units=1)
+        self._sigma = tf.layers.dense(inputs=layer, units=1, activation=lambda x: tf.nn.elu(x) + 1)
+        dist = tf.distributions.Normal(loc=self._mu, scale=self._sigma)
         self.loss = tf.reduce_mean(-dist.log_prob(self.targets_ph))
         self.training_op = tf.train.AdamOptimizer(learning_rate).minimize(self.loss)
 
@@ -93,22 +93,26 @@ class MLPEnsemble(object):
         # Create data set for each mlp.
         losses = np.empty((self.epochs, self.ensemble_size))
         n_batches = int(np.ceil(inputs.shape[0] / self.batch_size))
-        mlp = self.mlps[0]
         for epoch in range(self.epochs):
             avg_loss = 0.0
-            rand_ind = np.random.permutation(inputs.shape[0])
-            x_batches = np.array_split(inputs[rand_ind], n_batches)
-            y_batches = np.array_split(targets[rand_ind], n_batches)
+            shuffles_per_mlp = np.array([np.random.permutation(inputs.shape[0]) for _
+                                in self.mlps])
+            x_batches = np.array_split(inputs[shuffles_per_mlp], n_batches, axis=1)
+            y_batches = np.array_split(targets[shuffles_per_mlp], n_batches, axis=1)
             for i in range(n_batches):
-                x_batch = np.expand_dims(np.squeeze(x_batches[i]), axis=1)
-                y_batch = np.expand_dims(np.squeeze(y_batches[i]), axis=1)
-                _, loss = self.sess.run([mlp.training_op, mlp.loss],
-                                        feed_dict={
-                                            mlp.inputs_ph: x_batch,
-                                            mlp.targets_ph: y_batch})
-                avg_loss += loss / n_batches
+                x_batch_per_mlp = x_batches[i]
+                y_batch_per_mlp = y_batches[i]
+                inputs_feed_dict = {mlp.inputs_ph: x_batch_per_mlp[j, ...]
+                                    for j, mlp in enumerate(self.mlps)}
+                targets_feed_dict = {mlp.targets_ph: y_batch_per_mlp[j, ...]
+                                     for j, mlp in enumerate(self.mlps)}
+                feed_dict = {**inputs_feed_dict, **targets_feed_dict}
+                _, loss_per_mlp = self.sess.run([training_ops, loss_ops],
+                                                feed_dict=feed_dict)
+                avg_loss += np.array(loss_per_mlp) / n_batches
             if self.log and epoch % 20 == 0:
                 print('Epoch ', epoch,  ' | Losses =', avg_loss)
+            losses[epoch] = avg_loss
         return losses
 
     def predict(self, inputs):
