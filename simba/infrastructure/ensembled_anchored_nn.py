@@ -4,10 +4,9 @@ import tensorflow as tf
 
 class InitializationAnchoredNN(object):
     def __init__(self,
-                 sess,
+                 inputs,
+                 targets,
                  scope,
-                 input_dim,
-                 targets_dim,
                  learning_rate,
                  n_layers,
                  hidden_size,
@@ -16,17 +15,15 @@ class InitializationAnchoredNN(object):
                  init_std_bias,
                  init_std_weights,
                  data_noise):
-        self._sess = sess
-        self.inputs_ph = tf.placeholder(dtype=tf.float32, shape=(None, input_dim), name=(scope + '/inputs'))
-        self.targets_ph = tf.placeholder(dtype=tf.float32, shape=(None, targets_dim), name=(scope + '/targets'))
-        layer = self.inputs_ph
-        for _ in range(3):
-            layer = tf.layers.dense(inputs=layer, units=12, activation=tf.nn.tanh)
-        self._mu = tf.layers.dense(inputs=layer, units=1)
-        self._sigma = tf.layers.dense(inputs=layer, units=1, activation=lambda x: tf.nn.elu(x) + 1)
-        dist = tf.distributions.Normal(loc=self._mu, scale=self._sigma)
-        self.loss = tf.reduce_mean(-dist.log_prob(self.targets_ph))
-        self.training_op = tf.train.AdamOptimizer(learning_rate).minimize(self.loss)
+        with tf.variable_scope(scope):
+            layer = inputs
+            for _ in range(3):
+                layer = tf.layers.dense(inputs=layer, units=12, activation=tf.nn.tanh)
+            self._mu = tf.layers.dense(inputs=layer, units=1)
+            self._sigma = tf.layers.dense(inputs=layer, units=1, activation=lambda x: tf.nn.elu(x) + 1)
+            dist = tf.distributions.Normal(loc=self._mu, scale=self._sigma)
+            self._loss = tf.reduce_mean(-dist.log_prob(targets))
+            self._training_op = tf.train.AdamOptimizer(learning_rate).minimize(self._loss)
 
     def _anchor_weights(self, lamba_anchors):
         """
@@ -48,17 +45,13 @@ class InitializationAnchoredNN(object):
         #         )
         pass
 
-    def fit(self, inputs, targets):
-        loss, _ = self._sess.run([self.loss, self.training_op],
-                                 feed_dict={self.inputs_ph: inputs,
-                                            self.targets_ph: targets})
-        return loss
+    @property
+    def loss(self):
+        return self._loss
 
-    def predict(self, inputs):
-        mu, sigma = self._sess.run([self._mu, self._sigma],
-                                   feed_dict={self.inputs_ph: inputs})
-        print("Stds: ", sigma)
-        return tf.distributions.Normal(mu, sigma).sample().eval()
+    @property
+    def training_op(self):
+        return self._training_op
 
     @property
     def predict_op(self):
@@ -68,47 +61,57 @@ class InitializationAnchoredNN(object):
 class MLPEnsemble(object):
     def __init__(self,
                  sess,
+                 inputs_dim,
+                 outputs_dim,
                  ensemble_size,
                  n_epochs,
                  batch_size,
                  **mlp_kwargs):
         self.sess = sess
         self.ensemble_size = ensemble_size
+        self.inputs_dim = inputs_dim
         self.epochs = n_epochs
         self.batch_size = batch_size
         self.log = True
-        self.mlps = []
+        self.inputs_ph = tf.placeholder(
+            dtype=tf.float32,
+            shape=(ensemble_size, None, inputs_dim)
+        )
+        self.targets_ph = tf.placeholder(
+            dtype=tf.float32,
+            shape=(ensemble_size, None, outputs_dim)
+        )
+        self.mlps = [None] * ensemble_size
+        self.predict_ops = [None] * ensemble_size
+        self.training_ops = [None] * ensemble_size
+        self.losses_ops = [None] * ensemble_size
         for i in range(self.ensemble_size):
-            self.mlps.append(InitializationAnchoredNN(
-                sess=sess,
+            self.mlps[i] = InitializationAnchoredNN(
+                self.inputs_ph[i, ...],
+                self.targets_ph[i, ...],
                 scope=str(i),
                 **mlp_kwargs
-            ))
+            )
+            self.predict_ops[i] = self.mlps[i].predict_op
+            self.training_ops[i] = self.mlps[i].training_op
+            self.losses_ops[i] = self.mlps[i].loss
 
     def fit(self, inputs, targets):
         assert inputs.shape[0] == targets.shape[0]
-        # Collect training ops and losses.
-        training_ops = [mlp.training_op for mlp in self.mlps]
-        loss_ops = [mlp.loss for mlp in self.mlps]
-        # Create data set for each mlp.
         losses = np.empty((self.epochs, self.ensemble_size))
         n_batches = int(np.ceil(inputs.shape[0] / self.batch_size))
         for epoch in range(self.epochs):
             avg_loss = 0.0
-            shuffles_per_mlp = np.array([np.random.permutation(inputs.shape[0]) for _
-                                in self.mlps])
+            shuffles_per_mlp = np.array([np.random.permutation(inputs.shape[0])
+                                         for _ in self.mlps])
             x_batches = np.array_split(inputs[shuffles_per_mlp], n_batches, axis=1)
             y_batches = np.array_split(targets[shuffles_per_mlp], n_batches, axis=1)
             for i in range(n_batches):
-                x_batch_per_mlp = x_batches[i]
-                y_batch_per_mlp = y_batches[i]
-                inputs_feed_dict = {mlp.inputs_ph: x_batch_per_mlp[j, ...]
-                                    for j, mlp in enumerate(self.mlps)}
-                targets_feed_dict = {mlp.targets_ph: y_batch_per_mlp[j, ...]
-                                     for j, mlp in enumerate(self.mlps)}
-                feed_dict = {**inputs_feed_dict, **targets_feed_dict}
-                _, loss_per_mlp = self.sess.run([training_ops, loss_ops],
-                                                feed_dict=feed_dict)
+                _, loss_per_mlp = self.sess.run([self.training_ops, self.losses_ops],
+                                                feed_dict={
+                                                    self.inputs_ph: x_batches[i],
+                                                    self.targets_ph: y_batches[i]
+                                                })
                 avg_loss += np.array(loss_per_mlp) / n_batches
             if self.log and epoch % 20 == 0:
                 print('Epoch ', epoch,  ' | Losses =', avg_loss)
@@ -116,9 +119,10 @@ class MLPEnsemble(object):
         return losses
 
     def predict(self, inputs):
-        predict_ops = [mlp.predict_op for mlp in self.mlps]
-        feed_dict = {mlp.inputs_ph: inputs for mlp in self.mlps}
-        out = self.sess.run(predict_ops, feed_dict=feed_dict)
-        mus = np.array([prediction[0] for prediction in out])
-        sigmas = np.array([prediction[1] for prediction in out])
+        mus, sigmas = zip(*self.sess.run(self.predict_ops, feed_dict={
+            self.inputs_ph: np.broadcast_to(
+                inputs, (self.ensemble_size, inputs.shape[0], self.inputs_dim))
+        }))
+        mus = np.array(mus).squeeze()
+        sigmas = np.array(sigmas).squeeze()
         return mus, sigmas, tf.distributions.Normal(mus, sigmas).sample().eval()

@@ -30,10 +30,8 @@ def generate_covid_19_infection_rate_data():
 def make_model(args,
                sess,
                input_dim,
-               targets_dim):
+               outputs_dim):
     mlp_dict = dict(
-        input_dim=input_dim,
-        targets_dim=targets_dim,
         learning_rate=args.learning_rate,
         n_layers=args.n_layers,
         hidden_size=args.hidden_size,
@@ -45,6 +43,8 @@ def make_model(args,
     )
     return MLPEnsemble(
         sess,
+        input_dim,
+        outputs_dim,
         args.ensemble_size,
         args.n_epochs,
         args.batch_size,
