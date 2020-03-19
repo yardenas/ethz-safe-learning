@@ -4,6 +4,7 @@ import tensorflow as tf
 
 class InitializationAnchoredNN(object):
     def __init__(self,
+                 sess,
                  inputs,
                  targets,
                  scope,
@@ -15,35 +16,75 @@ class InitializationAnchoredNN(object):
                  init_std_bias,
                  init_std_weights,
                  data_noise):
+        self._sess = sess
         with tf.variable_scope(scope):
             layer = inputs
-            for _ in range(3):
-                layer = tf.layers.dense(inputs=layer, units=12, activation=tf.nn.tanh)
+            self._layers = []
+            lamda_anchors = []
+            if anchor:
+                bias_init_first_layer = \
+                    tf.random_normal_initializer(0.0, init_std_bias)
+                weights_init_first_layer = \
+                    tf.random_normal_initializer(0.0, init_std_weights)
+                bias_init_deep_layers = \
+                    tf.random_normal_initializer(0.0, 1.0 / np.sqrt(hidden_size))
+                weights_init_deep_layers = bias_init_deep_layers
+            else:
+                bias_init_first_layer, weights_init_first_layer,\
+                    bias_init_deep_layers, weights_init_deep_layers = \
+                    None, None, None, None
+            self._layers.append(tf.layers.Dense(
+                units=hidden_size,
+                activation=activation,
+                bias_initializer=bias_init_first_layer,
+                kernel_initializer=weights_init_first_layer
+            ))
+            lamda_anchors.append((data_noise / init_std_weights ** 2,
+                                 data_noise / init_std_bias ** 2))
+            layer = self._layers[0].apply(layer)
+            for _ in range(n_layers - 1):
+                self._layers.append(tf.layers.Dense(
+                    units=hidden_size,
+                    activation=activation,
+                    bias_initializer=bias_init_deep_layers,
+                    kernel_initializer=weights_init_deep_layers
+                ))
+                layer = self._layers[-1].apply(layer)
+                lamda_anchors.append((data_noise / hidden_size,
+                                     data_noise / hidden_size))
             self._mu = tf.layers.dense(inputs=layer, units=1)
-            self._sigma = tf.layers.dense(inputs=layer, units=1, activation=lambda x: tf.nn.elu(x) + 1)
+            self._sigma = tf.layers.dense(inputs=layer, units=1,
+                                          activation=lambda x: tf.nn.elu(x) + 1)
             dist = tf.distributions.Normal(loc=self._mu, scale=self._sigma)
             self._loss = tf.reduce_mean(-dist.log_prob(targets))
-            self._training_op = tf.train.AdamOptimizer(learning_rate).minimize(self._loss)
+            if anchor:
+                self._anchor_weights(lamda_anchors)
+            self._training_op = \
+                tf.train.AdamOptimizer(learning_rate).minimize(self._loss)
 
     def _anchor_weights(self, lamba_anchors):
         """
         Based on "Uncertainty in Neural Networks: Approximately Bayesian Ensembling"
         https://arxiv.org/abs/1810.05546
         """
-        # for i in range(len(self._layers)):
-        #     kernel = self._layers[i].kernel.eval().copy()
-        #     bias = self._layers[i].bias.eval().copy()
-        #     self.loss += \
-        #         lamba_anchors[i][0] * tf.losses.mean_squared_error(
-        #             labels=kernel,
-        #             predictions=self._layers[i].kernel
-        #         )
-        #     self.loss += \
-        #         lamba_anchors[i][1] * tf.losses.mean_squared_error(
-        #             labels=bias,
-        #             predictions=self._layers[i].bias
-        #         )
-        pass
+        weights = []
+        for layer in self._layers:
+            weights += layer.weights
+        init_weights = tf.variables_initializer(weights)
+        self._sess.run(init_weights)
+        for i in range(len(self._layers)):
+            kernel = self._layers[i].kernel.eval().copy()
+            bias = self._layers[i].bias.eval().copy()
+            self._loss += \
+                lamba_anchors[i][0] * tf.losses.mean_squared_error(
+                    labels=kernel,
+                    predictions=self._layers[i].kernel
+                )
+            self._loss += \
+                lamba_anchors[i][1] * tf.losses.mean_squared_error(
+                    labels=bias,
+                    predictions=self._layers[i].bias
+                )
 
     @property
     def loss(self):
@@ -81,20 +122,21 @@ class MLPEnsemble(object):
             dtype=tf.float32,
             shape=(ensemble_size, None, outputs_dim)
         )
-        self.mlps = [None] * ensemble_size
-        self.predict_ops = [None] * ensemble_size
-        self.training_ops = [None] * ensemble_size
-        self.losses_ops = [None] * ensemble_size
+        self.mlps = []
+        self.predict_ops = []
+        self.training_ops = []
+        self.losses_ops = []
         for i in range(self.ensemble_size):
-            self.mlps[i] = InitializationAnchoredNN(
+            self.mlps.append(InitializationAnchoredNN(
+                sess,
                 self.inputs_ph[i, ...],
                 self.targets_ph[i, ...],
                 scope=str(i),
                 **mlp_kwargs
-            )
-            self.predict_ops[i] = self.mlps[i].predict_op
-            self.training_ops[i] = self.mlps[i].training_op
-            self.losses_ops[i] = self.mlps[i].loss
+            ))
+            self.predict_ops.append(self.mlps[i].predict_op)
+            self.training_ops.append(self.mlps[i].training_op)
+            self.losses_ops.append(self.mlps[i].loss)
 
     def fit(self, inputs, targets):
         assert inputs.shape[0] == targets.shape[0]
