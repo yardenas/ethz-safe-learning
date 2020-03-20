@@ -8,6 +8,7 @@ class InitializationAnchoredNN(object):
                  inputs,
                  targets,
                  scope,
+                 outputs_dim,
                  learning_rate,
                  n_layers,
                  hidden_size,
@@ -53,10 +54,23 @@ class InitializationAnchoredNN(object):
                 lamda_anchors.append((data_noise / hidden_size,
                                      data_noise / hidden_size))
             self._mu = tf.layers.dense(inputs=layer, units=1)
-            self._sigma = tf.layers.dense(inputs=layer, units=1,
-                                          activation=lambda x: tf.nn.elu(x) + 1)
+            logsigma = tf.layers.dense(inputs=layer, units=1)
+            self.max_logsigma = tf.get_variable(
+                'max_logsigma', shape=(outputs_dim,),
+                initializer=tf.constant_initializer(5.8))
+            self.min_logsigma = tf.get_variable(
+                'min_sigma', shape=(outputs_dim,),
+                initializer=tf.constant_initializer(-10.0 / np.sqrt(outputs_dim))
+            )
+            logsigma = self.max_logsigma - tf.nn.softplus(
+                self.max_logsigma - logsigma)
+            logsigma = self.min_logsigma + tf.nn.softplus(
+                logsigma - self.min_logsigma
+            )
+            self._sigma = tf.exp(logsigma)
             dist = tf.distributions.Normal(loc=self._mu, scale=self._sigma)
-            self._loss = tf.reduce_mean(-dist.log_prob(targets))
+            self._loss = tf.reduce_mean(-dist.log_prob(targets)) + 0.00000 * tf.reduce_mean(self.max_logsigma) - \
+                         0.00000 * tf.reduce_mean(self.min_logsigma)
             if anchor:
                 self._anchor_weights(lamda_anchors)
             self._training_op = \
@@ -85,6 +99,10 @@ class InitializationAnchoredNN(object):
                     labels=bias,
                     predictions=self._layers[i].bias
                 )
+
+    @property
+    def log_sigmass(self):
+        return self.min_logsigma, self.max_logsigma
 
     @property
     def loss(self):
@@ -131,7 +149,8 @@ class MLPEnsemble(object):
                 sess,
                 self.inputs_ph[i, ...],
                 self.targets_ph[i, ...],
-                scope=str(i),
+                str(i),
+                outputs_dim,
                 **mlp_kwargs
             ))
             self.predict_ops.append(self.mlps[i].predict_op)
@@ -142,6 +161,7 @@ class MLPEnsemble(object):
         assert inputs.shape[0] == targets.shape[0]
         losses = np.empty((self.epochs, self.ensemble_size))
         n_batches = int(np.ceil(inputs.shape[0] / self.batch_size))
+        min_log, max_log = self.mlps[0].log_sigmass
         for epoch in range(self.epochs):
             avg_loss = 0.0
             shuffles_per_mlp = np.array([np.random.permutation(inputs.shape[0])
@@ -157,6 +177,7 @@ class MLPEnsemble(object):
                 avg_loss += np.array(loss_per_mlp) / n_batches
             if self.log and epoch % 20 == 0:
                 print('Epoch ', epoch,  ' | Losses =', avg_loss)
+                print(min_log.eval(), max_log.eval(), "fldkldfklf")
             losses[epoch] = avg_loss
         return losses
 
