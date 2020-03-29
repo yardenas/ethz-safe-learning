@@ -8,7 +8,6 @@ class InitializationAnchoredNN(object):
                  inputs,
                  targets,
                  scope,
-                 outputs_dim,
                  learning_rate,
                  n_layers,
                  hidden_size,
@@ -135,7 +134,6 @@ class MLPEnsemble(object):
                 self.inputs_ph[i, ...],
                 self.targets_ph[i, ...],
                 str(i),
-                outputs_dim,
                 **mlp_kwargs
             ))
             self.predict_ops.append(self.mlps[i].predict_op)
