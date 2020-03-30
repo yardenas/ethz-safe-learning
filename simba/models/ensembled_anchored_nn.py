@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from simba.infrastructure.logger import logger
 
 
 class InitializationAnchoredNN(object):
@@ -109,13 +110,13 @@ class MLPEnsemble(object):
                  ensemble_size,
                  n_epochs,
                  batch_size,
-                 **mlp_kwargs):
+                 mlp_kwargs):
         self.sess = sess
+        self.mlp_kwrags = mlp_kwargs
         self.ensemble_size = ensemble_size
         self.inputs_dim = inputs_dim
         self.epochs = n_epochs
         self.batch_size = batch_size
-        self.log = True
         self.inputs_ph = tf.placeholder(
             dtype=tf.float32,
             shape=(ensemble_size, None, inputs_dim)
@@ -128,20 +129,12 @@ class MLPEnsemble(object):
         self.predict_ops = []
         self.training_ops = []
         self.losses_ops = []
-        for i in range(self.ensemble_size):
-            self.mlps.append(InitializationAnchoredNN(
-                sess,
-                self.inputs_ph[i, ...],
-                self.targets_ph[i, ...],
-                str(i),
-                **mlp_kwargs
-            ))
-            self.predict_ops.append(self.mlps[i].predict_op)
-            self.training_ops.append(self.mlps[i].training_op)
-            self.losses_ops.append(self.mlps[i].loss)
 
     def fit(self, inputs, targets):
-        assert inputs.shape[0] == targets.shape[0]
+        assert inputs.shape[0] == targets.shape[0], \
+            logger.critical("Inputs batch size ({}) "
+                            "doesn't match targets batch size ({})"
+                            .format(inputs.shape[0], targets.shape[0]))
         losses = np.empty((self.epochs, self.ensemble_size))
         n_batches = int(np.ceil(inputs.shape[0] / self.batch_size))
         for epoch in range(self.epochs):
@@ -157,8 +150,8 @@ class MLPEnsemble(object):
                                                     self.targets_ph: y_batches[i]
                                                 })
                 avg_loss += np.array(loss_per_mlp) / n_batches
-            if self.log and epoch % 20 == 0:
-                print('Epoch ', epoch,  ' | Losses =', avg_loss)
+            if epoch % 20 == 0:
+                logger.debug('Epoch ', epoch,  ' | Losses =', avg_loss)
             losses[epoch] = avg_loss
         return losses
 
@@ -170,3 +163,18 @@ class MLPEnsemble(object):
         mus = np.array(mus).squeeze()
         sigmas = np.array(sigmas).squeeze()
         return mus, sigmas, tf.distributions.Normal(mus, sigmas).sample().eval()
+
+    def build(self):
+        for i in range(self.ensemble_size):
+            self.mlps.append(InitializationAnchoredNN(
+                self.sess,
+                self.inputs_ph[i, ...],
+                self.targets_ph[i, ...],
+                str(i),
+                **self.mlp_kwrags
+
+            ))
+            self.predict_ops.append(self.mlps[i].predict_op)
+            self.training_ops.append(self.mlps[i].training_op)
+            self.losses_ops.append(self.mlps[i].loss)
+

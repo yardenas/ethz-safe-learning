@@ -1,1 +1,1 @@
-from simba.environment_utils.state_scoring import SafetyGymStateScorer
+from simba.environment_utils.safety_gym_scoring import SafetyGymStateScorer

@@ -1,5 +1,6 @@
-from simba.agents.agent import BaseAgent
-from simba.infrastructure.logger import Logger
+from simba.infrastructure.training_logger import TrainingLogger
+from simba.infrastructure.logger import logger
+# TODO (yarden): set logging level from argparse on outer levels...
 
 
 class RLTrainer(object):
@@ -7,29 +8,29 @@ class RLTrainer(object):
                  agent,
                  environemnt,
                  seed,
-                 epochs,
-                 logger_kwargs,
                  log_frequency,
-                 video_log_frequency):
+                 video_log_frequency,
+                 training_logger_kwargs):
         self.agent = agent
         self.environment = environemnt
         self.seed = seed
-        self.epochs = epochs
-        self.logger = Logger(**logger_kwargs)
+        self.training_logger = TrainingLogger(**training_logger_kwargs)
         self.log_frequency = log_frequency
         self.video_log_frequency = video_log_frequency
 
     def train(self):
         self.agent.build_graph()
-        for epoch in range(self.epochs):
-            print("Training epoch {}.".format(epoch))
+        converged = False
+        iteration = 0
+        while not converged:
+            logger.info("Training iteration {}.".format(iteration))
             self.agent.interact(self.environment)
-            self.agent.update_model()
-            self.agent.update_policy()
-            if epoch % self.log_frequency == 0:
-                self.log(self.agent.report(), epoch)
-            if epoch % self.video_log_frequency == 0:
-                self.log_video(self.agent.say_cheese(), epoch)
+            self.agent.update()
+            if iteration % self.log_frequency == 0:
+                self.log(self.agent.report(), iteration)
+            if iteration % self.video_log_frequency == 0:
+                self.log_video(self.agent.say_cheese(), iteration)
+            iteration += 1
 
     def play_trained_model(self):
         # self.agent.load_graph()
@@ -41,14 +42,14 @@ class RLTrainer(object):
         """
         for key, value in report.items():
             print('{} : {}'.format(key, value))
-            self.logger.log_scalar(value, key, epoch)
-        self.logger.flush()
+            self.training_logger.log_scalar(value, key, epoch)
+        self.training_logger.flush()
 
     def log_video(self, trajectory_records, epoch):
         """
         Logs videos from rendered trajectories.
         """
-        self.logger.log_paths_as_videos(
+        self.training_logger.log_paths_as_videos(
             trajectory_records, epoch,
             len(trajectory_records)
         )
