@@ -1,6 +1,5 @@
 from simba.infrastructure.training_logger import TrainingLogger
 from simba.infrastructure.logger import logger
-# TODO (yarden): set logging level from argparse on outer levels...
 
 
 class RLTrainer(object):

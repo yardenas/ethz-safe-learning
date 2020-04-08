@@ -1,0 +1,11 @@
+options:
+  video_log_frequency: 0
+  seed: null
+
+transition_model:
+    ensembled_anchored_nn_params:
+      anchored_nn_params:
+        learning_rate: 8
+        anchor: True
+        yarden: True
+
