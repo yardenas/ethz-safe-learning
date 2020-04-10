@@ -13,8 +13,7 @@ class TrainingLogger:
                  log_dir,
                  fps,
                  max_video_length,
-                 n_logged_samples=10,
-                 summary_writer=None):
+                 n_logged_samples=10):
         self._log_dir = log_dir
         self.fps = fps,
         self.max_video_length = max_video_length

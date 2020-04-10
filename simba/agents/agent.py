@@ -1,4 +1,4 @@
-import simba.infrastructure as infra
+import simba.infrastructure.replay_buffer as rb
 from simba.infrastructure.logger import logger
 
 
@@ -8,17 +8,33 @@ class BaseAgent(object):
     class and implements a concrete RL algorithm.
     """
     def __init__(self,
+                 seed,
+                 observation_space_dim,
+                 action_space_dim,
                  train_batch_size,
                  train_interaction_steps,
                  eval_interaction_steps,
                  episode_length,
-                 replay_buffer_size):
+                 replay_buffer_size,
+                 policy,
+                 policy_parameters,
+                 model,
+                 model_parameters
+                 ):
+        self.observation_space_dim = observation_space_dim
+        self.actions_space_dim = action_space_dim
         self.train_batch_size = train_batch_size
         self.train_interaction_steps = train_interaction_steps
         self.eval_batch_size = eval_interaction_steps
         self.episode_length = episode_length
-        self.replay_buffer = infra.ReplayBuffer(replay_buffer_size)
+        self.replay_buffer = rb.ReplayBuffer(replay_buffer_size)
+        self.policy = self._make_policy(policy, policy_parameters)
+        self.model = self._make_model(model, model_parameters)
+        self.set_random_seeds(seed)
         # TODO (yarden): make this better.
+
+    def set_random_seeds(self, seed):
+        raise NotImplementedError("Random seeds function must be implemented.")
 
     def interact(self, environment):
         samples = self._interact(environment)
@@ -47,6 +63,12 @@ class BaseAgent(object):
     def _load(self):
         raise NotImplementedError
 
+    def _make_policy(self, policy, policy_parameters):
+        raise NotImplementedError
+
+    def _make_model(self, model, model_parameters):
+        raise NotImplementedError
+
     def sample_trajectories(
             self,
             environment,
@@ -60,7 +82,7 @@ class BaseAgent(object):
                 environment,
                 policy,
                 max_trajectory_length))
-            timesteps_this_batch += infra.path_length(trajectories[-1])
+            timesteps_this_batch += rb.path_length(trajectories[-1])
         return trajectories, timesteps_this_batch
 
     def sample_trajectory(
@@ -87,7 +109,7 @@ class BaseAgent(object):
             terminals.append(rollout_done)
             if rollout_done:
                 break
-        return infra.path_summary(
+        return rb.path_summary(
             observations,
             actions,
             rewards,

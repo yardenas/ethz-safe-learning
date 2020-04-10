@@ -3,7 +3,7 @@ import tensorflow as tf
 from simba.infrastructure.logger import logger
 
 
-class InitializationAnchoredNN(object):
+class InitializationAnchoredNn(object):
     def __init__(self,
                  sess,
                  inputs,
@@ -102,7 +102,7 @@ class InitializationAnchoredNN(object):
         return self._mu, self._sigma
 
 
-class MLPEnsemble(object):
+class MlpEnsemble(object):
     def __init__(self,
                  sess,
                  inputs_dim,
@@ -110,9 +110,9 @@ class MLPEnsemble(object):
                  ensemble_size,
                  n_epochs,
                  batch_size,
-                 mlp_kwargs):
+                 mlp_params):
         self.sess = sess
-        self.mlp_kwrags = mlp_kwargs
+        self.mlp_params = mlp_params
         self.ensemble_size = ensemble_size
         self.inputs_dim = inputs_dim
         self.epochs = n_epochs
@@ -131,10 +131,8 @@ class MLPEnsemble(object):
         self.losses_ops = []
 
     def fit(self, inputs, targets):
-        assert inputs.shape[0] == targets.shape[0], \
-            logger.critical("Inputs batch size ({}) "
-                            "doesn't match targets batch size ({})"
-                            .format(inputs.shape[0], targets.shape[0]))
+        assert inputs.shape[0] == targets.shape[0], "Inputs batch size ({}) "
+        "doesn't match targets batch size ({})".format(inputs.shape[0], targets.shape[0])
         losses = np.empty((self.epochs, self.ensemble_size))
         n_batches = int(np.ceil(inputs.shape[0] / self.batch_size))
         for epoch in range(self.epochs):
@@ -166,12 +164,12 @@ class MLPEnsemble(object):
 
     def build(self):
         for i in range(self.ensemble_size):
-            self.mlps.append(InitializationAnchoredNN(
+            self.mlps.append(InitializationAnchoredNn(
                 self.sess,
                 self.inputs_ph[i, ...],
                 self.targets_ph[i, ...],
                 str(i),
-                **self.mlp_kwrags
+                **self.mlp_params
 
             ))
             self.predict_ops.append(self.mlps[i].predict_op)

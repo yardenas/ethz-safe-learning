@@ -1,0 +1,14 @@
+models:
+  mlp_ensemble:
+    ensemble_size: 5
+    n_epochs: 250
+    batch_size: 64
+    mlp_params:
+      learning_rate: 0.0007
+      n_layers: 5
+      hidden_size: 64
+      activation: tf.nn.relu
+      anchor: False
+      init_std_bias: 0.0
+      init_std_weights: 0.0
+      data_noise: 0.0

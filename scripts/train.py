@@ -1,8 +1,8 @@
 import argparse
-from config.config import load_config_or_die
+from config.config import load_config_or_die, pretty_print
 from simba.infrastructure import RLTrainer
 from simba.infrastructure.logger import logger
-from simba.agents import MBRLAgent
+from simba.infrastructure.agent_factory import make_agent
 
 
 def main():
@@ -14,7 +14,9 @@ def main():
     args = parser.parse_args()
     logger.setLevel(args.log_level)
     params = load_config_or_die(args.config_dir, args.config_basename)
-    print(params)
+    logger.info("Startning a training session with parameters:\n" +
+                pretty_print(params))
+    make_agent(params, None)
 
 
 if __name__ == '__main__':

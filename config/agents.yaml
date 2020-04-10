@@ -1,0 +1,11 @@
+agents:
+  agent:
+    train_batch_size: 100
+    train_interaction_steps: 100
+    eval_interaction_steps: 100
+    episode_length: 100
+    replay_buffer_size: 1000000
+  mbrl_agent:
+    warmup_timesteps: 100
+    policy: cem_mpc
+    model: mlp_ensemble
