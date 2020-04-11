@@ -1,12 +1,14 @@
 def main():
     import argparse
-    from config.config import load_config_or_die, pretty_print
     import logging
+    import time
+    from config.config import load_config_or_die, pretty_print
     from simba.infrastructure.logging_utils import init_loggging
     from simba.infrastructure import RLTrainer
     from simba.infrastructure.agent_factory import make_agent
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir', type=str, default='/data/logs')
+    now = time.asctime(time.localtime())
+    parser.add_argument('--log_dir', type=str, default=('/data/logs' + now))
     parser.add_argument('--log_level', type=str, default='INFO')
     parser.add_argument('--config_dir', type=str, required=True)
     parser.add_argument('--config_basename', type=str, required=True)
