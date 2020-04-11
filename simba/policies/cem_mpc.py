@@ -50,3 +50,20 @@
 #
 #         # Replace nan costs with very high cost
 #         return tf.reduce_mean(tf.where(tf.is_nan(costs), 1e6 * tf.ones_like(costs), costs), axis=1)
+from simba.infrastructure.logger import logger
+from simba.policies.policy import PolicyBase
+
+
+class CemMpc(PolicyBase):
+    def __init__(self, transition_model):
+        super().__init__()
+        self.transition_model = transition_model
+        pass
+
+    def generate_action(self, state):
+        logger.debug("Taking action.")
+        pass
+
+    def build(self):
+        logger.debug("Building policy.")
+        pass

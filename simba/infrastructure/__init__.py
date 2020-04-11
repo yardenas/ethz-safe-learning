@@ -1,1 +1,2 @@
-from simba.infrastructure.ensembled_anchored_nn import MLPEnsemble, InitializationAnchoredNN
+from simba.infrastructure.trainer import RLTrainer
+

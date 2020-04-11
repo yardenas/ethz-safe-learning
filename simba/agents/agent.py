@@ -1,5 +1,5 @@
-from simba.infrastructure.replay_buffer import ReplayBuffer, path_summary, path_length
-from simba.infrastructure.ensembled_anchored_nn import make_session
+import simba.infrastructure.replay_buffer as rb
+from simba.infrastructure.logging_utils import logger
 
 
 class BaseAgent(object):
@@ -8,76 +8,66 @@ class BaseAgent(object):
     class and implements a concrete RL algorithm.
     """
     def __init__(self,
-                 model,
-                 policy,
+                 seed,
+                 observation_space_dim,
+                 action_space_dim,
                  train_batch_size,
                  train_interaction_steps,
                  eval_interaction_steps,
                  episode_length,
                  replay_buffer_size,
-                 **kwargs):
-        self.model = model
-        self.policy = policy
+                 policy,
+                 policy_parameters,
+                 model,
+                 model_parameters
+                 ):
+        self.observation_space_dim = observation_space_dim
+        self.actions_space_dim = action_space_dim
         self.train_batch_size = train_batch_size
         self.train_interaction_steps = train_interaction_steps
         self.eval_batch_size = eval_interaction_steps
         self.episode_length = episode_length
-        self.replay_buffer = ReplayBuffer(replay_buffer_size)
-        self.sess = make_session()
-        self.build_graph()
+        self.replay_buffer = rb.ReplayBuffer(replay_buffer_size)
+        self.policy = self._make_policy(policy, policy_parameters)
+        self.model = self._make_model(model, model_parameters)
+        self.set_random_seeds(seed)
+        # TODO (yarden): make this better.
+
+    def set_random_seeds(self, seed):
+        raise NotImplementedError("Random seeds function must be implemented.")
 
     def interact(self, environment):
-        """
-        Interacts with the environment and stores the sampled
-        interactions in a replay buffer.
-        """
         samples = self._interact(environment)
         self.replay_buffer.store(samples)
 
-    def update_model(self):
-        raise NotImplementedError
-
-    def update_policy(self):
+    def update(self):
         raise NotImplementedError
 
     def report(self):
-        """
-        :return: A dictionary with this iteration's report
-        """
-        report = dict()
-        report.update(self._report())
-
-    def say_cheese(self):
-        """
-        :return: Renderings of evaluation trajectories.
-        """
         raise NotImplementedError
 
     def _interact(self, environment):
         raise NotImplementedError
 
-    def _create_fit_feed_dict(
-            self,
-            observations,
-            actions,
-            rewards,
-            next_observations,
-            terminals):
+    def build_graph(self, graph_dir=None):
+        if graph_dir is None:
+            logger.info("Building computational graph.")
+            self._build()
+        else:
+            logger.info("Loading computational graph from {}".format(graph_dir))
+            self._load()
+
+    def _build(self):
         raise NotImplementedError
 
-    def _create_prediction_feed_dict(
-            self,
-            observations,
-            actions):
+    def _load(self):
         raise NotImplementedError
 
-    def _report(self):
+    def _make_policy(self, policy, policy_parameters):
         raise NotImplementedError
 
-    def build_graph(self):
-        print("Building computational graph.")
-        self.model.build(self.sess)
-        self.policy.build(self.sess)
+    def _make_model(self, model, model_parameters):
+        raise NotImplementedError
 
     def sample_trajectories(
             self,
@@ -92,7 +82,7 @@ class BaseAgent(object):
                 environment,
                 policy,
                 max_trajectory_length))
-            timesteps_this_batch += path_length(trajectories[-1])
+            timesteps_this_batch += rb.path_length(trajectories[-1])
         return trajectories, timesteps_this_batch
 
     def sample_trajectory(
@@ -119,7 +109,7 @@ class BaseAgent(object):
             terminals.append(rollout_done)
             if rollout_done:
                 break
-        return path_summary(
+        return rb.path_summary(
             observations,
             actions,
             rewards,

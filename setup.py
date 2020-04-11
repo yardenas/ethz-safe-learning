@@ -20,5 +20,7 @@ setup(
         'numpy~=1.17.4',
         'seaborn==0.8.1',
         'tensorflow>=1.13.1',
-    ],
+        'pyyaml~=5.3.1',
+        'tensorboardx==1.8'
+    ]
 )

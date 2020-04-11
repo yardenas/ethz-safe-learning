@@ -1,8 +1,18 @@
 import os
 from tensorboardX import SummaryWriter
 import numpy as np
+import logging
 
-class Logger:
+logger = logging.getLogger('simba')
+
+
+def init_loggging(log_level='WARNING'):
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=log_level)
+
+
+class TrainingLogger:
     """
     Copy-pasted from 'Berkely CS285'
     (https://github.com/yardenas/berkeley-deep-rl/tree/f741338c085ee5b329f3c9dd05e93e89bc43574a)
@@ -12,8 +22,7 @@ class Logger:
                  log_dir,
                  fps,
                  max_video_length,
-                 n_logged_samples=10,
-                 summary_writer=None):
+                 n_logged_samples=10):
         self._log_dir = log_dir
         self.fps = fps,
         self.max_video_length = max_video_length
