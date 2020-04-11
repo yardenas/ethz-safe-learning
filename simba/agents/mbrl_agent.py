@@ -1,9 +1,10 @@
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from simba.infrastructure.common import create_tf_session
 from simba.agents import BaseAgent
 from simba.models.transition_model import TransitionModel
-from simba.infrastructure.logger import logger
+from simba.infrastructure.logging_utils import logger
+tf.disable_v2_behavior()
 
 
 class MbrlAgent(BaseAgent):

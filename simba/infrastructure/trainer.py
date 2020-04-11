@@ -1,5 +1,5 @@
-from simba.infrastructure.training_logger import TrainingLogger
-from simba.infrastructure.logger import logger
+from simba.infrastructure.logging_utils import TrainingLogger
+from simba.infrastructure.logging_utils import logger
 
 
 class RLTrainer(object):

@@ -1,6 +1,15 @@
 import os
 from tensorboardX import SummaryWriter
 import numpy as np
+import logging
+
+logger = logging.getLogger('simba')
+
+
+def init_loggging(log_level='WARNING'):
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=log_level)
 
 
 class TrainingLogger:

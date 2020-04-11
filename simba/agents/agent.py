@@ -1,5 +1,5 @@
 import simba.infrastructure.replay_buffer as rb
-from simba.infrastructure.logger import logger
+from simba.infrastructure.logging_utils import logger
 
 
 class BaseAgent(object):

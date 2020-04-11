@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow.compat.v1 as tf
-from simba.infrastructure.logger import logger
-tf.disable_v2_behavior()
+from simba.infrastructure.logging_utils import logger
 
 
 class InitializationAnchoredNn(object):
@@ -150,7 +149,7 @@ class MlpEnsemble(object):
                                                 })
                 avg_loss += np.array(loss_per_mlp) / n_batches
             if epoch % 20 == 0:
-                logger.debug('Epoch ', epoch,  ' | Losses =', avg_loss)
+                logger.info('Epoch {} | Losses {}'.format(epoch, avg_loss))
             losses[epoch] = avg_loss
         return losses
 
