@@ -85,6 +85,7 @@ class BaseAgent(object):
             timesteps_this_batch += rb.path_length(trajectories[-1])
         return trajectories, timesteps_this_batch
 
+    @staticmethod
     def sample_trajectory(
             self,
             environment,

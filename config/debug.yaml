@@ -2,6 +2,7 @@ options:
   video_log_frequency: 0
   seed: null
   agent: mbrl_agent
+  environment: cartpole
 
 models:
     ensembled_anchored_nn:

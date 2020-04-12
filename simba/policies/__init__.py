@@ -1,1 +1,1 @@
-from simba.policies.cem_mpc import CemMpc
+from simba.policies.mpc import CemMpc

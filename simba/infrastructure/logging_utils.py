@@ -6,11 +6,13 @@ import logging
 logger = logging.getLogger('simba')
 
 
-def init_loggging(log_level='WARNING'):
+def init_loggging(log_level='WARNING', log_file=None):
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=log_level
+        level=log_level,
+        filename=log_file
     )
+    logger.setLevel(log_level)
 
 
 class TrainingLogger:
