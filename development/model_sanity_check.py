@@ -61,16 +61,16 @@ def make_model():
         n_layers=5,
         units=64,
         activation=tf.nn.relu,
-        dropout_rate=0.0
+        dropout_rate=0.2
     )
     ensemble = MlpEnsemble(
         inputs_dim=1,
         outputs_dim=1,
-        ensemble_size=5,
+        ensemble_size=1,
         n_epochs=300,
         batch_size=64,
-        validation_split=0.0,
-        learning_rate=0.0007,
+        validation_split=0.1,
+        learning_rate=0.001,
         mlp_params=mlp_dict
     )
     ensemble.build()
@@ -99,7 +99,7 @@ aleatoric_monte_carlo_uncertainty = np.mean(np.std(preds, axis=1) ** 2, axis=0)
 epistemic_monte_carlo_uncertainty = np.std(np.mean(preds, axis=1), axis=0) ** 2
 total_monte_carlo_uncertainty = aleatoric_monte_carlo_uncertainty + epistemic_monte_carlo_uncertainty
 
-fig = plt.figure(figsize=(12, 12), dpi= 80, facecolor='w', edgecolor='k')
+fig = plt.figure(figsize=(12, 12), dpi=80, facecolor='w', edgecolor='k')
 ax = fig.subplots()
 ax.set_ylim([-100, 12.5e3])
 ax.scatter(time_augmented, infected_people_samples, color='#FF9671', alpha=0.09,
