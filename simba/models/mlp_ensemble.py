@@ -16,7 +16,7 @@ class BaseLayer(tf.keras.layers.Layer):
 
     def call(self, inputs, training=None):
         x = self._dense(inputs)
-        x = self._batch_norm(x, training=training)
+        # x = self._batch_norm(x, training=training)
         x = self._activation(x)
         return self._dropout(x, training=training)
 
@@ -43,10 +43,7 @@ class GaussianDistMlp(tf.keras.Model):
         self.mlp = tf.keras.Sequential([
             BaseLayer(units, activation, dropout_rate) for _ in range(n_layers)
         ])
-        self.mlp.add(tfp.layers.DistributionLambda(
-            lambda t: tfp.distributions.Normal(loc=t[..., :1],
-                                               scale=1e-4 + tf.math.softplus(t[..., 1:]))
-        ))
+        self.mlp.add(GaussianHead())
 
     def call(self, inputs, training=None):
         return self.mlp(inputs, training)
@@ -55,8 +52,8 @@ class GaussianDistMlp(tf.keras.Model):
     def loss(y_true, y_pred):
         prediction_dim = y_pred.shape[1] // 2
         mu, var = y_pred[..., :prediction_dim], y_pred[..., prediction_dim:]
-        return 0.5 * tf.math.log(2.0 * np.pi * var) + \
-               0.5 * tf.math.divide(tf.math.squared_difference(y_true, mu), var)
+        return 0.5 * tf.reduce_sum(tf.math.log(2.0 * np.pi * var)) + \
+               0.5 * tf.reduce_sum(tf.math.divide(tf.math.squared_difference(y_true, mu), var))
 
 
 class MlpEnsemble(object):
@@ -84,10 +81,9 @@ class MlpEnsemble(object):
         outputs = [GaussianDistMlp(name='ensemble/id_' + str(i), **self.mlp_params)
                    (inputs[i]) for i in range(self.ensemble_size)]
         self.ensemble = tf.keras.Model(inputs=inputs, outputs=outputs, name='ensemble')
-        negloglike = lambda y, p_y: -p_y.log_prob(y)
         self.ensemble.compile(
             optimizer=tf.keras.optimizers.Adam(self.learning_rate),
-            loss=[negloglike for _ in range(self.ensemble_size)]
+            loss=[GaussianDistMlp.loss for _ in range(self.ensemble_size)]
         )
         self.ensemble.summary()
 
@@ -108,13 +104,10 @@ class MlpEnsemble(object):
             validation_split=self.validation_split
         )
 
-    @tf.function
     def predict(self, inputs):
-        yyy = np.broadcast_to(
-            inputs, (self.ensemble_size, inputs.shape[0], self.inputs_dim)
-        )
-        preds = self.ensemble(yyy[0, ...])
-        mus = preds.mean()
-        sigmas = preds.stddev()
-        return mus, sigmas, preds.sample()
+        broadcasted = [inputs] * self.ensemble_size
+        preds = self.ensemble(broadcasted, training=False)
+        mus = preds[:, :self.outputs_dim]
+        sigmas = np.sqrt(preds[:, self.outputs_dim:])
+        return mus, sigmas, tfp.distributions.Normal(mus, sigmas).sample()
 

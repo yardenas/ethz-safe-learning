@@ -61,16 +61,16 @@ def make_model():
         n_layers=5,
         units=64,
         activation=tf.nn.relu,
-        dropout_rate=0.2
+        dropout_rate=0.0
     )
     ensemble = MlpEnsemble(
         inputs_dim=1,
         outputs_dim=1,
-        ensemble_size=1,
+        ensemble_size=5,
         n_epochs=300,
         batch_size=64,
-        validation_split=0.1,
-        learning_rate=0.001,
+        validation_split=0.0,
+        learning_rate=0.0007,
         mlp_params=mlp_dict
     )
     ensemble.build()
@@ -86,8 +86,17 @@ data_std = time_augmented.std()
 x = np.squeeze((time_augmented - data_mean) / (data_std + 1e-8))
 x_test = (x_test - data_mean) / (data_std + 1e-8)
 model = make_model()
+import time as t
+t0 = t.time()
 model.fit(x[:, np.newaxis], infected_people_samples[:, np.newaxis])
-mus, sigmas, preds = np.squeeze(model.predict(x_test[:, np.newaxis]))
+t1 = t.time()
+print("train time:", t1 - t0)
+mus, sigmas, preds = np.squeeze(model.predict(tf.constant(x_test[:, np.newaxis])))
+t2 = t.time()
+print("pred first:", t2 - t1)
+model.predict(x_test[:, np.newaxis])
+t3 = t.time()
+print("pred sec:", t3 - t2)
 
 
 # The total uncertainty (epistemic and aleatoric) using monte-carlo estimation
@@ -128,4 +137,5 @@ ax1.legend(loc='upper right', fontsize='medium')
 ax2 = fig.add_subplot(212)
 ax2.plot(time_val, epistemic_monte_carlo_uncertainty, label='Monte-carlo epistemic uncertainty')
 ax2.legend(loc='upper right', fontsize='medium')
+plt.show()
 
