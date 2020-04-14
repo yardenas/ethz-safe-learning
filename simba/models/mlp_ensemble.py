@@ -32,25 +32,26 @@ class GaussianHead(tf.keras.layers.Layer):
                          tf.math.softplus(self._var(inputs)) + 1e-4), axis=1)
 
 
-                 name,
-                 units,
-                 activation,
-                 dropout_rate):
-        super().__init__(name=name)
-        self.mlp = tf.keras.Sequential([
-            BaseLayer(units, activation, dropout_rate) for _ in range(n_layers)
-        ])
+def gaussian_dist_mlp(inputs_dim,
+                      name,
+                      n_layers,
+                      units,
+                      activation,
+                      dropout_rate):
+    inputs = tf.keras.Input(shape=(inputs_dim,))
+    x = tf.keras.Sequential([
+        BaseLayer(units, activation, dropout_rate) for _ in range(n_layers)
+    ])(inputs)
+    outputs = GaussianHead()(x)
+    model = tf.keras.Model(inputs=inputs, outputs=outputs, name=name)
     return model
 
-    def call(self, inputs, training=None):
-        return self.mlp(inputs, training)
 
-    @staticmethod
-    def loss(y_true, y_pred):
-        prediction_dim = y_pred.shape[1] // 2
-        mu, var = y_pred[..., :prediction_dim], y_pred[..., prediction_dim:]
-        return 0.5 * tf.reduce_sum(tf.math.log(2.0 * np.pi * var)) + \
-               0.5 * tf.reduce_sum(tf.math.divide(tf.math.squared_difference(y_true, mu), var))
+@tf.function
+def negative_log_likelihood(y_true, y_pred):
+    prediction_dim = y_pred.shape[1] // 2
+    mu, var = y_pred[..., :prediction_dim], y_pred[..., prediction_dim:]
+    return 0.5 * tf.reduce_sum(tf.math.log(2.0 * np.pi * var)) + \
            0.5 * tf.reduce_sum(tf.math.divide(tf.math.squared_difference(y_true, mu), var))
 
 
