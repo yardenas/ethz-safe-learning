@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
 
 
 class BaseLayer(tf.keras.layers.Layer):
@@ -51,8 +50,8 @@ def gaussian_dist_mlp(inputs_dim,
 def negative_log_likelihood(y_true, y_pred):
     prediction_dim = y_pred.shape[1] // 2
     mu, var = y_pred[..., :prediction_dim], y_pred[..., prediction_dim:]
-    return 0.5 * tf.reduce_sum(tf.math.log(2.0 * np.pi * var)) + \
-           0.5 * tf.reduce_sum(tf.math.divide(tf.math.squared_difference(y_true, mu), var))
+    return 0.5 * tf.reduce_mean(tf.math.log(2.0 * np.pi * var)) + \
+           0.5 * tf.reduce_mean(tf.math.divide(tf.math.squared_difference(y_true, mu), var))
 
 
 class MlpEnsemble(object):
@@ -77,12 +76,12 @@ class MlpEnsemble(object):
 
     def build(self):
         inputs = [tf.keras.Input(shape=(self.inputs_dim,)) for _ in range(self.ensemble_size)]
-        outputs = [GaussianDistMlp(name='ensemble/id_' + str(i), **self.mlp_params)
+        outputs = [gaussian_dist_mlp(name='ensemble/id_' + str(i), **self.mlp_params, inputs_dim=self.inputs_dim)
                    (inputs[i]) for i in range(self.ensemble_size)]
         self.ensemble = tf.keras.Model(inputs=inputs, outputs=outputs, name='ensemble')
         self.ensemble.compile(
             optimizer=tf.keras.optimizers.Adam(self.learning_rate),
-            loss=[GaussianDistMlp.loss for _ in range(self.ensemble_size)]
+            loss=[negative_log_likelihood for _ in range(self.ensemble_size)]
         )
         self.ensemble.summary()
 
@@ -104,9 +103,10 @@ class MlpEnsemble(object):
         )
 
     def predict(self, inputs):
-        broadcasted = [inputs] * self.ensemble_size
-        preds = self.ensemble(broadcasted, training=False)
-        mus = preds[:, :self.outputs_dim]
-        sigmas = np.sqrt(preds[:, self.outputs_dim:])
-        return mus, sigmas, tfp.distributions.Normal(mus, sigmas).sample()
+        broadcasted = [inputs.astype(np.float32)] * self.ensemble_size
+        preds = self.ensemble.predict(broadcasted)
+        preds = np.array(preds, copy=False)
+        mus = preds[..., :self.outputs_dim]
+        sigmas = np.sqrt(preds[..., self.outputs_dim:])
+        return mus, sigmas, np.random.normal(mus, sigmas)
 

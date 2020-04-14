@@ -67,10 +67,10 @@ def make_model():
         inputs_dim=1,
         outputs_dim=1,
         ensemble_size=5,
-        n_epochs=300,
-        batch_size=256,
-        validation_split=0.0,
-        learning_rate=0.1,
+        n_epochs=50,
+        batch_size=128,
+        validation_split=0.2,
+        learning_rate=0.75,
         mlp_params=mlp_dict
     )
     ensemble.build()
