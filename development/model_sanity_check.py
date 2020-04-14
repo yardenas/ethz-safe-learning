@@ -68,9 +68,9 @@ def make_model():
         outputs_dim=1,
         ensemble_size=5,
         n_epochs=300,
-        batch_size=64,
+        batch_size=256,
         validation_split=0.0,
-        learning_rate=0.0007,
+        learning_rate=0.1,
         mlp_params=mlp_dict
     )
     ensemble.build()
@@ -91,12 +91,15 @@ t0 = t.time()
 model.fit(x[:, np.newaxis], infected_people_samples[:, np.newaxis])
 t1 = t.time()
 print("train time:", t1 - t0)
-mus, sigmas, preds = np.squeeze(model.predict(tf.constant(x_test[:, np.newaxis])))
+mus, sigmas, preds = np.squeeze(model.predict((x_test[:, np.newaxis])))
 t2 = t.time()
 print("pred first:", t2 - t1)
 model.predict(x_test[:, np.newaxis])
 t3 = t.time()
 print("pred sec:", t3 - t2)
+model.predict(x_test[:, np.newaxis])
+t4 = t.time()
+print("pred tihid:", t4 - t3)
 
 
 # The total uncertainty (epistemic and aleatoric) using monte-carlo estimation

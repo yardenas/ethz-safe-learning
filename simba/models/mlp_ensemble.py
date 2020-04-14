@@ -16,7 +16,7 @@ class BaseLayer(tf.keras.layers.Layer):
 
     def call(self, inputs, training=None):
         x = self._dense(inputs)
-        # x = self._batch_norm(x, training=training)
+        x = self._batch_norm(x, training=training)
         x = self._activation(x)
         return self._dropout(x, training=training)
 
@@ -32,10 +32,7 @@ class GaussianHead(tf.keras.layers.Layer):
                          tf.math.softplus(self._var(inputs)) + 1e-4), axis=1)
 
 
-class GaussianDistMlp(tf.keras.Model):
-    def __init__(self,
                  name,
-                 n_layers,
                  units,
                  activation,
                  dropout_rate):
@@ -43,7 +40,7 @@ class GaussianDistMlp(tf.keras.Model):
         self.mlp = tf.keras.Sequential([
             BaseLayer(units, activation, dropout_rate) for _ in range(n_layers)
         ])
-        self.mlp.add(GaussianHead())
+    return model
 
     def call(self, inputs, training=None):
         return self.mlp(inputs, training)
@@ -54,6 +51,7 @@ class GaussianDistMlp(tf.keras.Model):
         mu, var = y_pred[..., :prediction_dim], y_pred[..., prediction_dim:]
         return 0.5 * tf.reduce_sum(tf.math.log(2.0 * np.pi * var)) + \
                0.5 * tf.reduce_sum(tf.math.divide(tf.math.squared_difference(y_true, mu), var))
+           0.5 * tf.reduce_sum(tf.math.divide(tf.math.squared_difference(y_true, mu), var))
 
 
 class MlpEnsemble(object):
