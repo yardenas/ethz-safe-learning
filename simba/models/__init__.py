@@ -1,2 +1,2 @@
 from simba.models.model import TensorFlowBaseModel
-from simba.models.ensembled_anchored_nn import MlpEnsemble
+from simba.models.mlp_ensemble import MlpEnsemble
