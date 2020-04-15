@@ -12,7 +12,9 @@ def base_layer(inputs,
     output = tf.layers.dense(inputs, units)
     output = tf.layers.batch_normalization(output, training=training)
     output = activation(output)
-    output = tf.nn.dropout(output, rate=tf.cast(tf.logical_not(training), dtype=tf.float32) * dropout_rate)
+    output = tf.cond(training,
+                     lambda: tf.nn.dropout(output, rate=dropout_rate),
+                     lambda: output)
     return output
 
 
