@@ -6,9 +6,9 @@ class TransitionModel(TensorFlowBaseModel):
     def __init__(self,
                  sess,
                  model,
-                 model_parameters,
                  observation_space_dim,
-                 action_space_dim):
+                 action_space_dim,
+                 **kwargs):
         super().__init__(sess,
                          observation_space_dim + action_space_dim,
                          observation_space_dim)
@@ -16,7 +16,7 @@ class TransitionModel(TensorFlowBaseModel):
             self._sess,
             self.inputs_dim,
             self.outputs_dim,
-            **model_parameters)
+            **kwargs)
         self.inputs_mean = None
         self.inputs_stddev = None
 

@@ -1,8 +1,13 @@
 options:
-  video_log_frequency: 0
-  seed: null
+  trainer_options:
+    video_log_frequency: 0
+    log_frequency: 0
+    training_logger_params:
+      fps: 15
+      max_video_length: 40
+  seed: 123
   agent: mbrl_agent
-  environment: cartpole
+  environment: MbrlInvertedPendulum-v2
 
 models:
     ensembled_anchored_nn:

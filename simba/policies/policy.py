@@ -1,6 +1,6 @@
 class PolicyBase(object):
     def __init__(self):
-        raise NotImplementedError
+        pass
 
     def generate_action(self, state):
         raise NotImplementedError

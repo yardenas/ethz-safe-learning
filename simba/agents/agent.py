@@ -9,27 +9,21 @@ class BaseAgent(object):
     """
     def __init__(self,
                  seed,
-                 observation_space_dim,
-                 action_space_dim,
-                 train_batch_size,
-                 train_interaction_steps,
-                 eval_interaction_steps,
-                 episode_length,
+                 # observation_space_dim,
+                 # action_space_dim,
+                 # train_batch_size,
+                 # train_interaction_steps,
+                 # eval_interaction_steps,
+                 # episode_length,
                  replay_buffer_size,
-                 policy,
-                 policy_parameters,
-                 model,
-                 model_parameters
                  ):
-        self.observation_space_dim = observation_space_dim
-        self.actions_space_dim = action_space_dim
-        self.train_batch_size = train_batch_size
-        self.train_interaction_steps = train_interaction_steps
-        self.eval_batch_size = eval_interaction_steps
-        self.episode_length = episode_length
+        # self.observation_space_dim = observation_space_dim
+        # self.actions_space_dim = action_space_dim
+        # self.train_batch_size = train_batch_size
+        # self.train_interaction_steps = train_interaction_steps
+        # self.eval_batch_size = eval_interaction_steps
+        # self.episode_length = episode_length
         self.replay_buffer = rb.ReplayBuffer(replay_buffer_size)
-        self.policy = self._make_policy(policy, policy_parameters)
-        self.model = self._make_model(model, model_parameters)
         self.set_random_seeds(seed)
         # TODO (yarden): make this better.
 
@@ -63,12 +57,6 @@ class BaseAgent(object):
     def _load(self):
         raise NotImplementedError
 
-    def _make_policy(self, policy, policy_parameters):
-        raise NotImplementedError
-
-    def _make_model(self, model, model_parameters):
-        raise NotImplementedError
-
     def sample_trajectories(
             self,
             environment,
@@ -85,7 +73,6 @@ class BaseAgent(object):
             timesteps_this_batch += rb.path_length(trajectories[-1])
         return trajectories, timesteps_this_batch
 
-    @staticmethod
     def sample_trajectory(
             self,
             environment,
@@ -98,7 +85,7 @@ class BaseAgent(object):
         steps = 0
         while True:
             observations.append(observation)
-            action = policy.get_action(observation)
+            action = policy.generate_action(observation)
             actions.append(action)
             observation, reward, done, _ = \
                 environment.step(action)

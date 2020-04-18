@@ -6,13 +6,11 @@ class RLTrainer(object):
     def __init__(self,
                  agent,
                  environemnt,
-                 seed,
                  log_frequency,
                  video_log_frequency,
                  training_logger_params):
         self.agent = agent
         self.environment = environemnt
-        self.seed = seed
         self.training_logger = TrainingLogger(**training_logger_params)
         self.log_frequency = log_frequency
         self.video_log_frequency = video_log_frequency
