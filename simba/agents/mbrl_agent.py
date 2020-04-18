@@ -56,10 +56,12 @@ class MbrlAgent(BaseAgent):
 
     def update(self):
         # TODO (yarden): not sure about random data, maybe everything, maybe sample N trajectories.
-        observations, actions, _, next_observations, _ = \
+        observations, actions, next_observations, _, _ = \
             self.replay_buffer.sample_random_rollouts(374)
-        observations_with_actions = np.hstack((self.replay_buffer.observations,
-                                               self.replay_buffer.actions))
+        observations_with_actions = np.concatenate((
+            observations,
+            np.expand_dims(actions, axis=1)), axis=1
+        )
         # We're fitting s_(t + 1) - s_(t) to improve numerical stability.
         self.model.fit(observations_with_actions, next_observations - observations)
 
@@ -93,6 +95,7 @@ class MbrlAgent(BaseAgent):
     def _build(self):
         self.model.build()
         self.policy.build()
+        self._sess.run(tf.global_variables_initializer())
         logger.info("Done building Mbrl agent computational graph.")
 
     def _load(self):

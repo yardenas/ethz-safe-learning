@@ -23,7 +23,6 @@ class ReplayBuffer(object):
         if self.add_noise:
             observations = add_noise(observations)
             next_observations = add_noise(next_observations)
-
         if self.observations is None:
             self.observations = observations[-self.max_size:]
             self.actions = actions[-self.max_size:]
@@ -44,7 +43,7 @@ class ReplayBuffer(object):
 
     def sample_random_rollouts(self, num_rollouts):
         rand_indices = np.random.permutation(len(self.paths))[:num_rollouts]
-        return self.paths[rand_indices]
+        return concatenate_rollouts(np.array(self.paths, copy=False)[rand_indices])
 
     def sample_recent_rollouts(self, num_rollouts=1):
         return self.paths[-num_rollouts:]
@@ -108,7 +107,7 @@ def concatenate_rollouts(paths):
     return observations, actions, next_observations, terminals, concatenated_rewards
 
 
-def add_noise(data, noise_to_signal):
+def add_noise(data, noise_to_signal=0.01):
     """
     Noise data with a normal distribution with variance that's
     proportional to mean of each dimension.
