@@ -16,3 +16,8 @@ class MbrlInvertedPendulumEnv(InvertedPendulumEnv, MbrlEnv):
         assert obs.ndim == 2 and acs.ndim == 2, "Expected inputs with shape (batch_size, dim)"
         notdone = np.logical_and(np.isfinite(obs).all(axis=1), (np.abs(obs[:, 1]) <= .2))
         return np.logical_not(notdone)
+
+    def _get_obs(self):
+        qpos = self.sim.data.qpos
+        qvel = self.sim.data.qvel
+        return np.concatenate([np.sin(qpos), np.cos(qpos), qvel]).ravel()
