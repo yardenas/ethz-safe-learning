@@ -6,13 +6,11 @@ class RLTrainer(object):
     def __init__(self,
                  agent,
                  environemnt,
-                 seed,
                  log_frequency,
                  video_log_frequency,
                  training_logger_params):
         self.agent = agent
         self.environment = environemnt
-        self.seed = seed
         self.training_logger = TrainingLogger(**training_logger_params)
         self.log_frequency = log_frequency
         self.video_log_frequency = video_log_frequency
@@ -25,9 +23,9 @@ class RLTrainer(object):
             logger.info("Training iteration {}.".format(iteration))
             self.agent.interact(self.environment)
             self.agent.update()
-            if iteration % self.log_frequency == 0:
+            if self.log_frequency > 0 and iteration % self.log_frequency == 0:
                 self.log(self.agent.report(), iteration)
-            if iteration % self.video_log_frequency == 0:
+            if self.log_frequency > 0 and iteration % self.video_log_frequency == 0:
                 self.log_video(self.agent.say_cheese(), iteration)
             iteration += 1
 

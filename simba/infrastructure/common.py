@@ -21,3 +21,8 @@ def create_tf_session(use_gpu, gpu_frac=0.6, allow_gpu_growth=True, which_gpu=0)
     else:
         config = tf.ConfigProto(device_count={'GPU': 0})
     return tf.Session(config=config)
+
+
+def dump_string(string, filename):
+    with open(filename, 'w+') as file:
+        file.write(string)

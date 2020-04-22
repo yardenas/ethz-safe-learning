@@ -1,5 +1,5 @@
 models:
-  mlp_ensemble:
+  anchored_mlp_ensemble:
     ensemble_size: 5
     n_epochs: 250
     batch_size: 64
