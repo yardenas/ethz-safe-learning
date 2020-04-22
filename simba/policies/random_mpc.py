@@ -2,17 +2,9 @@ from simba.policies.policy import PolicyBase
 from simba.infrastructure.logging_utils import logger
 
 
-class CemMpc(PolicyBase):
-    def __init__(self,
-                 model,
-                 environment,
-                 horizon):
+class RandomMpc(PolicyBase):
+    def __init__(self):
         super().__init__()
-        # TODO (yarden): not sure if it should take the model just as input to a function.
-        self.model = model
-        self.reward = environment.get_rewards
-        self.cost = None
-        self.horizon = horizon
         pass
 
     def generate_action(self, state):

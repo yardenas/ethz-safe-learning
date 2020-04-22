@@ -6,11 +6,13 @@ import logging
 logger = logging.getLogger('simba')
 
 
-def init_loggging(log_level='WARNING'):
+def init_loggging(log_level='WARNING', log_file=None):
     logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=log_level
+        format='%(asctime)s:%(name)s:%(levelname)s: %(message)s',
+        level=log_level,
+        filename=log_file
     )
+    logger.setLevel(log_level)
 
 
 class TrainingLogger:
@@ -22,15 +24,11 @@ class TrainingLogger:
     def __init__(self,
                  log_dir,
                  fps,
-                 max_video_length,
-                 n_logged_samples=10):
+                 max_video_length):
         self._log_dir = log_dir
         self.fps = fps,
         self.max_video_length = max_video_length
-        print('########################')
-        print('logging outputs to ', log_dir)
-        print('########################')
-        self._n_logged_samples = n_logged_samples
+        logger.info('Logging training data to: ' + log_dir)
         self._summ_writer = SummaryWriter(log_dir, flush_secs=1, max_queue=1)
 
     def log_scalar(self, scalar, name, step_):

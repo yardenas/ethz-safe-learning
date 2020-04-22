@@ -18,6 +18,7 @@ class InitializationAnchoredNn(object):
                  init_std_weights,
                  data_noise):
         self._sess = sess
+        activation = eval(activation) if type(activation) is str else activation
         with tf.variable_scope(scope):
             layer = inputs
             self._layers = []
@@ -30,6 +31,8 @@ class InitializationAnchoredNn(object):
                 bias_init_deep_layers = \
                     tf.random_normal_initializer(0.0, 1.0 / np.sqrt(hidden_size))
                 weights_init_deep_layers = bias_init_deep_layers
+                lamda_anchors.append((data_noise / init_std_weights ** 2,
+                                      data_noise / init_std_bias ** 2))
             else:
                 bias_init_first_layer, weights_init_first_layer,\
                     bias_init_deep_layers, weights_init_deep_layers = \
@@ -40,8 +43,6 @@ class InitializationAnchoredNn(object):
                 bias_initializer=bias_init_first_layer,
                 kernel_initializer=weights_init_first_layer
             ))
-            lamda_anchors.append((data_noise / init_std_weights ** 2,
-                                 data_noise / init_std_bias ** 2))
             layer = self._layers[0].apply(layer)
             for _ in range(n_layers - 1):
                 self._layers.append(tf.layers.Dense(
@@ -51,8 +52,9 @@ class InitializationAnchoredNn(object):
                     kernel_initializer=weights_init_deep_layers
                 ))
                 layer = self._layers[-1].apply(layer)
-                lamda_anchors.append((data_noise / hidden_size,
-                                     data_noise / hidden_size))
+                if anchor:
+                    lamda_anchors.append((data_noise / hidden_size,
+                                         data_noise / hidden_size))
             self._mu = tf.layers.dense(inputs=layer, units=1)
             var = tf.layers.dense(inputs=layer, units=1,
                                   activation=lambda t: tf.math.softplus(t) + 1e-4)
@@ -102,7 +104,7 @@ class InitializationAnchoredNn(object):
         return self._mu, self._sigma
 
 
-class MlpEnsemble(object):
+class AnchoredMlpEnsemble(object):
     def __init__(self,
                  sess,
                  inputs_dim,

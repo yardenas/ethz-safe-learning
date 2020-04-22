@@ -1,2 +1,3 @@
 policies:
   cem_mpc:
+    horizon: 3
