@@ -12,4 +12,4 @@ agents:
     episode_length: 100
     warmup_timesteps: 100
     policy: cem_mpc
-    model: mlp_ensemble
+    model: anchored_mlp_ensemble

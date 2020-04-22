@@ -104,7 +104,7 @@ class InitializationAnchoredNn(object):
         return self._mu, self._sigma
 
 
-class MlpEnsemble(object):
+class AnchoredMlpEnsemble(object):
     def __init__(self,
                  sess,
                  inputs_dim,

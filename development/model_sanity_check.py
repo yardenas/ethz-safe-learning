@@ -8,7 +8,7 @@
 # In this notebook I want to demonstrate that my tensorflow implementation of the ensemble neural network is
 # actually working and useful. In the spirit of times, I will try to learn the _hypothetical_ spreading of the COVID-19
 # disease in the _hypothetical_ island of Wakanda through the period of one year.
-from simba.models.ensembled_anchored_nn import MlpEnsemble
+from simba.models.ensembled_anchored_nn import AnchoredMlpEnsemble
 import tensorflow.compat.v1 as tf
 import numpy as np
 from scipy.integrate import odeint
@@ -67,7 +67,7 @@ def make_model(sess):
         init_std_weights=10.5,
         data_noise=noise
     )
-    ensemble = MlpEnsemble(
+    ensemble = AnchoredMlpEnsemble(
         sess=sess,
         inputs_dim=1,
         outputs_dim=1,

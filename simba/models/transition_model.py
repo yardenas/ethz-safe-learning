@@ -1,5 +1,5 @@
 from simba.infrastructure.common import standardize_name
-from simba.models import TensorFlowBaseModel, MlpEnsemble
+from simba.models import TensorFlowBaseModel, AnchoredMlpEnsemble
 
 
 class TransitionModel(TensorFlowBaseModel):
