@@ -31,7 +31,7 @@ class MbrlAgent(BaseAgent):
         self.train_interaction_steps = train_interaction_steps
         self.eval_batch_size = eval_interaction_steps
         self.episode_length = episode_length
-        self.warmup_policy = self._make_policy('random_mpc')
+        self.warmup_policy = self._make_policy('random_mpc', kwargs['policy_params'])
         self.warmup_timesteps = warmup_timesteps
         self.total_warmup_timesteps_so_far = 0
         assert all(key in kwargs.keys() for key in ('policy', 'policy_params', 'model', 'model_params')), \
@@ -52,9 +52,9 @@ class MbrlAgent(BaseAgent):
         # TODO (yarden): not sure about random data, maybe everything, maybe sample N trajectories.
         observations, actions, next_observations, _, _ = \
             self.replay_buffer.sample_random_rollouts(374)
-        observations_with_actions = np.concatenate((
+        observations_with_actions = np.concatenate([
             observations,
-            np.expand_dims(actions, axis=1)), axis=1
+            actions], axis=1
         )
         # We're fitting s_(t + 1) - s_(t) to improve numerical stability.
         self.model.fit(observations_with_actions, next_observations - observations)
@@ -95,7 +95,10 @@ class MbrlAgent(BaseAgent):
     def _load(self):
         raise NotImplementedError
 
-    def _make_policy(self, policy, policy_params=None):
+    def _make_policy(self, policy, policy_params):
+        eval_policy = eval(standardize_name(policy))
+        if eval_policy == RandomMpc:
+            return RandomMpc(policy_params['environment'].action_space)
         if policy_params is None:
             return eval((standardize_name(policy)))()
         return eval((standardize_name(policy)))(model=self.model, **policy_params)

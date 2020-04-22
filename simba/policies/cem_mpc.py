@@ -1,3 +1,5 @@
+import numpy as np
+
 from simba.policies.policy import PolicyBase
 from simba.infrastructure.logging_utils import logger
 
@@ -18,7 +20,7 @@ class CemMpc(PolicyBase):
     def generate_action(self, state):
         logger.debug("Taking action.")
         # TODO (yarden): if env.is_done == True stop propagating (or at least add 0 to rewards...)
-        return 0.0
+        return np.zeros((1,))
 
     def build(self):
         logger.debug("Building policy.")
