@@ -24,12 +24,6 @@ class MbrlAgent(BaseAgent):
         self._sess = create_tf_session(tf.config.list_physical_devices('GPU'))
         super().__init__(
             seed,
-            # observation_space_dim,
-            # action_space_dim,
-            # train_batch_size,
-            # train_interaction_steps,
-            # eval_interaction_steps,
-            # episode_length,
             replay_buffer_size)
         self.observation_space_dim = observation_space_dim
         self.actions_space_dim = action_space_dim

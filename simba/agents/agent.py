@@ -9,20 +9,8 @@ class BaseAgent(object):
     """
     def __init__(self,
                  seed,
-                 # observation_space_dim,
-                 # action_space_dim,
-                 # train_batch_size,
-                 # train_interaction_steps,
-                 # eval_interaction_steps,
-                 # episode_length,
                  replay_buffer_size,
                  ):
-        # self.observation_space_dim = observation_space_dim
-        # self.actions_space_dim = action_space_dim
-        # self.train_batch_size = train_batch_size
-        # self.train_interaction_steps = train_interaction_steps
-        # self.eval_batch_size = eval_interaction_steps
-        # self.episode_length = episode_length
         self.replay_buffer = rb.ReplayBuffer(replay_buffer_size)
         self.set_random_seeds(seed)
         # TODO (yarden): make this better.
