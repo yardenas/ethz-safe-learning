@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow.compat.v1 as tf
 from scipy.stats import truncnorm
 from gym import spaces as spaces
 from simba.policies.policy import PolicyBase
@@ -83,6 +84,7 @@ class CemMpc(PolicyBase):
             random_state = np.random.choice(samples)
             s_t = np.reshape(s_t_1_samples[random_state, ...], (-1, current_state.shape[0]))
         return np.array(rewards, copy=False)
+
 
     @property
     def sampling_params(self):

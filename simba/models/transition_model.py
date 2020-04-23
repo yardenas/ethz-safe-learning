@@ -1,3 +1,4 @@
+import tensorflow.compat.v1 as tf
 import numpy as np
 
 from simba.infrastructure.common import standardize_name
@@ -43,6 +44,13 @@ class TransitionModel(TensorFlowBaseModel):
         mus = mus + np.reshape(inputs[:, :self.observation_space_dim], mus.shape)
         samples = samples + np.reshape(inputs[:, :self.observation_space_dim], mus.shape)
         return mus, sigmas, samples
+
+    def simulate_trajectories(self, current_state, action_sequences):
+        predict_op = self.model.predict_ops
+        particles = 20
+        def per_timestep(s_t_a_t, _):
+            s_t, a_t = s_t_a_t
+            s_t_1 = predict_op(tf.concat([s_t, a_t], axis=1))
 
     def save(self):
         pass
