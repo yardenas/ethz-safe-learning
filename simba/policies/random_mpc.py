@@ -12,7 +12,6 @@ class RandomMpc(PolicyBase):
 
     def generate_action(self, state):
         logger.debug("Taking action.")
-        print(self.action_space_sample().shape, "yarden is")
         return self.action_space_sample()
 
     def build(self):

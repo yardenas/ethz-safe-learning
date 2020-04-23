@@ -57,7 +57,7 @@ class MbrlAgent(BaseAgent):
             actions], axis=1
         )
         # We're fitting s_(t + 1) - s_(t) to improve numerical stability.
-        self.model.fit(observations_with_actions, next_observations - observations)
+        self.model.fit(observations_with_actions, next_observations)
 
     def report(self):
         report = dict()

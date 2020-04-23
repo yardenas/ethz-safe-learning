@@ -4,8 +4,8 @@ models:
     n_epochs: 250
     batch_size: 64
     mlp_params:
-      learning_rate: 0.0007
-      n_layers: 5
+      learning_rate: 0.001
+      n_layers: 3
       hidden_size: 64
       activation: tf.nn.relu
       anchor: False

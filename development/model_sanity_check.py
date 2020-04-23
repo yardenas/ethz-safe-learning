@@ -13,6 +13,7 @@ import tensorflow.compat.v1 as tf
 import numpy as np
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
+
 tf.set_random_seed(0)
 np.random.seed(0)
 
@@ -36,6 +37,7 @@ def generate_covid_19_infection_rate_data():
         dIdt = beta * S * I / population - gamma * I
         dRdt = gamma * I
         return dSdt, dIdt, dRdt
+
     y_0 = s_0, i_0, r_0
     ret = odeint(deriv, y_0, t, args=(population, beta, gamma))
     _, infected_people, _ = ret.transpose()
@@ -89,6 +91,7 @@ data_std = time_augmented.std()
 x = np.squeeze((time_augmented - data_mean) / (data_std + 1e-8))
 x_test = (x_test - data_mean) / (data_std + 1e-8)
 import time as t
+
 t0 = t.time()
 with tf.Session() as sess:
     model = make_model(sess)
@@ -106,12 +109,11 @@ with tf.Session() as sess:
     t4 = t.time()
     print("pred thes:", t4 - t3)
 
-
 # The total uncertainty (epistemic and aleatoric) using monte-carlo estimation
 # using data sampled from _ensemble_size_ and _n\_particles_
 # For more details on decomposition of uncertainties: http://proceedings.mlr.press/v80/depeweg18a/depeweg18a.pdf 
-preds = np.reshape(preds, 
-                  (model.ensemble_size, n_particles, time_val.shape[0]))
+preds = np.reshape(preds,
+                   (model.ensemble_size, n_particles, time_val.shape[0]))
 aleatoric_monte_carlo_uncertainty = np.mean(np.std(preds, axis=1) ** 2, axis=0)
 epistemic_monte_carlo_uncertainty = np.std(np.mean(preds, axis=1), axis=0) ** 2
 total_monte_carlo_uncertainty = aleatoric_monte_carlo_uncertainty + epistemic_monte_carlo_uncertainty
@@ -121,8 +123,8 @@ ax = fig.subplots()
 ax.set_ylim([-100, 12.5e3])
 ax.scatter(time_augmented, infected_people_samples, color='#FF9671', alpha=0.09,
            s=20, label='Infected today people a day')
-ax.plot(time_val, np.mean(preds, axis=(0, 1)), '-', color='#845EC2', linewidth=1.5, 
-       label='Mean over all particles and MLPs', alpha=0.8)
+ax.plot(time_val, np.mean(preds, axis=(0, 1)), '-', color='#845EC2', linewidth=1.5,
+        label='Mean over all particles and MLPs', alpha=0.8)
 ax.fill_between(time_val, np.mean(preds, axis=(0, 1)) - np.sqrt(total_monte_carlo_uncertainty),
                 np.mean(preds, axis=(0, 1)) + np.sqrt(total_monte_carlo_uncertainty),
                 color='#FF6F91', alpha=0.5, label='Total monte-carlo standard deviation')
@@ -131,12 +133,12 @@ plt.xlabel("Days")
 plt.ylabel("Infectious people")
 plt.show()
 
-mus = np.reshape(mus, 
-                  (model.ensemble_size, n_particles, time_val.shape[0]))
-sigmas = np.reshape(sigmas, 
-                  (model.ensemble_size, n_particles, time_val.shape[0]))
+mus = np.reshape(mus,
+                 (model.ensemble_size, n_particles, time_val.shape[0]))
+sigmas = np.reshape(sigmas,
+                    (model.ensemble_size, n_particles, time_val.shape[0]))
 aleatoric_explicit_uncertainty = np.mean(sigmas ** 2, axis=(0, 1))
-fig = plt.figure(figsize=(10, 10), dpi= 80, facecolor='w', edgecolor='k')
+fig = plt.figure(figsize=(10, 10), dpi=80, facecolor='w', edgecolor='k')
 ax1 = fig.add_subplot(211)
 ax1.plot(time_val, aleatoric_monte_carlo_uncertainty, label='Monte-carlo estimated aleatoric uncertainty')
 ax1.plot(time_val, aleatoric_explicit_uncertainty, label='Explicit aleatoric uncertainty')
@@ -146,4 +148,3 @@ ax2 = fig.add_subplot(212)
 ax2.plot(time_val, epistemic_monte_carlo_uncertainty, label='Monte-carlo epistemic uncertainty')
 ax2.legend(loc='upper right', fontsize='medium')
 plt.show()
-

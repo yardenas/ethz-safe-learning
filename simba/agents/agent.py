@@ -74,6 +74,7 @@ class BaseAgent(object):
         while True:
             observations.append(observation)
             action = policy.generate_action(observation)
+            logger.debug("Taking action.")
             actions.append(action)
             observation, reward, done, _ = \
                 environment.step(action)
@@ -85,6 +86,9 @@ class BaseAgent(object):
             terminals.append(rollout_done)
             if rollout_done:
                 break
+        # A more safe assert would be to check all of the actions, but compute time is not cheap.
+        # (Although premature optimization is the root of all evil.)
+        assert actions[0].shape == environment.action_space.shape, "Policy produces wrong actions shape."
         return rb.path_summary(
             observations,
             actions,

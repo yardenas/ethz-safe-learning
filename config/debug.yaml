@@ -9,10 +9,4 @@ options:
   agent: mbrl_agent
   environment: MbrlInvertedPendulum-v2
 
-models:
-  ensembled_anchored_nn:
-    anchored_nn:
-      learning_rate: 8
-      anchor: True
-      yarden: True
 

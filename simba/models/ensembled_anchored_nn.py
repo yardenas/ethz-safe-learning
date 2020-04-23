@@ -8,6 +8,7 @@ class InitializationAnchoredNn(object):
                  sess,
                  inputs,
                  targets,
+                 output_dim,
                  scope,
                  learning_rate,
                  n_layers,
@@ -55,8 +56,8 @@ class InitializationAnchoredNn(object):
                 if anchor:
                     lamda_anchors.append((data_noise / hidden_size,
                                          data_noise / hidden_size))
-            self._mu = tf.layers.dense(inputs=layer, units=1)
-            var = tf.layers.dense(inputs=layer, units=1,
+            self._mu = tf.layers.dense(inputs=layer, units=output_dim)
+            var = tf.layers.dense(inputs=layer, units=output_dim,
                                   activation=lambda t: tf.math.softplus(t) + 1e-4)
             self._sigma = tf.sqrt(var)
             self._loss = 0.5 * tf.reduce_mean(tf.log(var)) + 0.5 * tf.reduce_mean(
@@ -117,6 +118,7 @@ class AnchoredMlpEnsemble(object):
         self.mlp_params = mlp_params
         self.ensemble_size = ensemble_size
         self.inputs_dim = inputs_dim
+        self.outputs_dim = outputs_dim
         self.epochs = n_epochs
         self.batch_size = batch_size
         self.inputs_ph = tf.placeholder(
@@ -155,14 +157,19 @@ class AnchoredMlpEnsemble(object):
             losses[epoch] = avg_loss
         return losses
 
-    def predict(self, inputs):
+    def predict(self, inputs, samples=1, distribute=True):
+        # Split the data or assign all of the MLPs with the same inputs.
+        data_per_mlp = np.broadcast_to(inputs, (self.ensemble_size, inputs.shape[0], self.inputs_dim)) \
+            if not distribute else np.reshape(inputs, (self.ensemble_size, -1, self.inputs_dim))
         mus, sigmas = zip(*self.sess.run(self.predict_ops, feed_dict={
-            self.inputs_ph: np.broadcast_to(
-                inputs, (self.ensemble_size, inputs.shape[0], self.inputs_dim))
+            self.inputs_ph: data_per_mlp
         }))
-        mus = np.array(mus).squeeze()
-        sigmas = np.array(sigmas).squeeze()
-        return mus, sigmas, tf.distributions.Normal(mus, sigmas).sample().eval()
+        mus = np.array(mus, copy=False)
+        sigmas = np.array(sigmas, copy=False)
+        preds = tf.distributions.Normal(loc=mus, scale=sigmas).sample(
+            sample_shape=(samples,)
+        ).eval(session=self.sess)
+        return mus, sigmas, preds
 
     def build(self):
         for i in range(self.ensemble_size):
@@ -170,6 +177,7 @@ class AnchoredMlpEnsemble(object):
                 self.sess,
                 self.inputs_ph[i, ...],
                 self.targets_ph[i, ...],
+                self.outputs_dim,
                 str(i),
                 **self.mlp_params
 
