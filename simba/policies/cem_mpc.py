@@ -1,6 +1,5 @@
 import numpy as np
-from numba import jit
-from scipy.stats import truncnorm, norm
+from scipy.stats import truncnorm
 from gym import spaces as spaces
 from simba.policies.policy import PolicyBase
 from simba.infrastructure.logging_utils import logger
@@ -29,11 +28,9 @@ class CemMpc(PolicyBase):
         self.n_samples = n_samples
         self.elite = n_elite
 
-    # @jit
     def generate_action(self, state):
         # TODO (yarden): if env.is_done == True stop propagating (or at least add 0 to rewards...)
-        mu = (self.action_space.low + self.action_space.high) / 2.0
-        sigma = self.action_space.high - self.action_space.low
+        lb, ub, mu, sigma = self.sampling_params
         for i in range(self.iterations):
             action_sequences = truncnorm.rvs(
                 a=lb, b=ub, loc=mu, scale=sigma,
@@ -53,10 +50,9 @@ class CemMpc(PolicyBase):
         logger.debug("Building policy.")
         pass
 
-    # @jit
     def simulate_trajectories(self, current_state, action_sequences):
         particles = 20
-        samples = 50
+        samples = 1
         # TODO (yarden): not sure about this copy.
         s_t = np.broadcast_to(current_state.copy(),
                               (particles * self.n_samples, current_state.shape[0]))
@@ -72,7 +68,7 @@ class CemMpc(PolicyBase):
             done_trajectories = np.logical_and(
                 np.reshape(self.is_done(s_t, a_t), (particles, self.n_samples)), done_trajectories)
             # s_t_1_samples is of shape: (samples, n_mlps ,particles_per_mlp, observation_space_dim)
-            s_t_1_mean, s_t_1_sigma, s_t_1_samples = \
+            _, _, s_t_1_samples = \
                 self.model.predict(np.concatenate([s_t, a_t], axis=1), samples=samples, distribute=True)
             # Predict outcomes of future states conditioned on a_t_1.
             s_t_1_samples_batches = np.reshape(s_t_1_samples, (-1, current_state.shape[0]))
