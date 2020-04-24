@@ -24,7 +24,7 @@ class CemMpc(PolicyBase):
         assert isinstance(self.action_space, spaces.Box), "Expecting only box as action space."
         self.horizon = horizon
         self.iterations = iterations
-        self.objective = lambda t: np.mean(np.sum(t, axis=0), axis=(1, 2, 3))
+        self.objective = lambda t: 1.0
         self.smoothing = smoothing
         self.n_samples = n_samples
         self.elite = n_elite
@@ -53,7 +53,6 @@ class CemMpc(PolicyBase):
 
     def simulate_trajectories(self, current_state, action_sequences):
         particles = 20
-        samples = 1
         # TODO (yarden): not sure about this copy.
         s_t = np.broadcast_to(current_state.copy(),
                               (particles * self.n_samples, current_state.shape[0]))
@@ -68,21 +67,17 @@ class CemMpc(PolicyBase):
             # If a trajectory was already predicted to be over in previous timesteps, it should remain done.
             done_trajectories = np.logical_and(
                 np.reshape(self.is_done(s_t, a_t), (particles, self.n_samples)), done_trajectories)
-            # s_t_1_samples is of shape: (samples, n_mlps ,particles_per_mlp, observation_space_dim)
-            _, _, s_t_1_samples = \
-                self.model.predict(np.concatenate([s_t, a_t], axis=1), samples=samples, distribute=True)
+            s_t_1_samples = \
+                np.squeeze(self.model.predict(np.concatenate([s_t, a_t], axis=1)))
             # Predict outcomes of future states conditioned on a_t_1.
-            s_t_1_samples_batches = np.reshape(s_t_1_samples, (-1, current_state.shape[0]))
             a_t_1 = action_batches[:, t + 1, ...]
-            rewards_batch = self.reward(s_t_1_samples_batches, a_t_1)
+            rewards_batch = self.reward(s_t_1_samples, a_t_1)
             reward_per_particle = np.reshape(rewards_batch, (-1, particles, self.n_samples))
             # Arrange rewards in shape: (n_action_seqs, n_mlps, particles_per_mlp, samples_per_particle)
             # 'dead' particles recieve 0 reward.
-            rewards.append(np.reshape(reward_per_particle * (1 - done_trajectories),
-                                      (self.n_samples, s_t_1_samples.shape[1], -1, samples)))
+            rewards.append(reward_per_particle)
             # TODO (yarden): decide if we propagate the mean or a random sample (I think a random sample.)
-            random_state = np.random.choice(samples)
-            s_t = np.reshape(s_t_1_samples[random_state, ...], (-1, current_state.shape[0]))
+            s_t = s_t_1_samples
         return np.array(rewards, copy=False)
 
 
