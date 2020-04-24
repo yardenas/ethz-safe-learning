@@ -37,7 +37,7 @@ class GaussianDistMlp(object):
         self.dropout_rate = dropout_rate
 
     def training_ops(self, inputs, targets):
-        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(self.scope):
             # TODO (yarden): make sure that the training actually works here... (probably no.)
             mu, var = self.predict_ops(inputs, False)
             loss = 0.5 * tf.reduce_sum(tf.log(2.0 * np.pi * var)) + 0.5 * tf.reduce_sum(
@@ -46,7 +46,7 @@ class GaussianDistMlp(object):
             return loss, tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
 
     def predict_ops(self, inputs, training):
-        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(self.scope):
             x = inputs
             training = tf.constant(False)
             for _ in range(self.n_layers):
@@ -85,7 +85,7 @@ class MlpEnsemble(object):
     def predict_ops(self, inputs):
         mu, var = [], []
         batch_size = tf.shape(inputs)[0]
-        with tf.variable_scope(self.scope, reuse=False):
+        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             # Distribute inputs to the mlps.
             inputs_per_mlp = tf.reshape(inputs, (self.ensemble_size, -1, self.inputs_dim))
             for i, mlp in enumerate(self.mlps):
