@@ -159,19 +159,15 @@ class AnchoredMlpEnsemble(object):
 
     def predict(self, inputs, samples=1, distribute=True):
         # Split the data or assign all of the MLPs with the same inputs.
-        data_per_mlp = np.broadcast_to(inputs, (self.ensemble_size, inputs.shape[0], self.inputs_dim)) \
-            if not distribute else np.reshape(inputs, (self.ensemble_size, -1, self.inputs_dim))
-        mus, sigmas = zip(*self.sess.run(self.predict_ops, feed_dict={
+        data_per_mlp = np.reshape(inputs, (self.ensemble_size, -1, self.inputs_dim))
+        rets = self.sess.run(self.predict_ops, feed_dict={
             self.inputs_ph: data_per_mlp
-        }))
-        mus = np.array(mus, copy=False)
-        sigmas = np.array(sigmas, copy=False)
-        preds = tf.distributions.Normal(loc=mus, scale=sigmas).sample(
-            sample_shape=(samples,)
-        ).eval(session=self.sess)
-        return mus, sigmas, preds
+        })
+        return rets
 
     def build(self):
+        mus = []
+        sigmas = []
         for i in range(self.ensemble_size):
             self.mlps.append(InitializationAnchoredNn(
                 self.sess,
@@ -182,7 +178,14 @@ class AnchoredMlpEnsemble(object):
                 **self.mlp_params
 
             ))
-            self.predict_ops.append(self.mlps[i].predict_op)
+            mu, sigma = self.mlps[i].predict_op
+            mus.append(mu)
+            sigmas.append(sigma)
             self.training_ops.append(self.mlps[i].training_op)
             self.losses_ops.append(self.mlps[i].loss)
+        merged_mus = tf.concat(mus, axis=0)
+        merged_sigmas = tf.concat(sigmas, axis=0)
+        dist = tf.distributions.Normal(loc=merged_mus, scale=merged_sigmas)
+        self.predict_ops = dist.mean(), dist.stddev(), dist.sample()
+
 

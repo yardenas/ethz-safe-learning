@@ -117,16 +117,16 @@ class MlpEnsemble(object):
         return losses
 
     def predict(self, inputs):
-        mus, sigmas = zip(*self.sess.run(self.predict_ops, feed_dict={
+        rets = self.sess.run(self.predict_ops, feed_dict={
             self.inputs_ph: np.broadcast_to(
                 inputs, (self.ensemble_size, inputs.shape[0], self.inputs_dim)),
             self.training_ph: False
-        }))
-        mus = np.array(mus).squeeze()
-        sigmas = np.array(sigmas).squeeze()
-        return mus, sigmas, tf.distributions.Normal(mus, sigmas).sample().eval()
+        })
+        return rets
 
     def build(self):
+        mus = []
+        sigmas = []
         for i in range(self.ensemble_size):
             self.mlps.append(GaussianDistMlp(
                 sess=self.sess,
@@ -137,7 +137,12 @@ class MlpEnsemble(object):
                 **self.mlp_params
 
             ))
-            self.predict_ops.append(self.mlps[i].predict_op)
+            mu, sigma = self.mlps[i].predict_op
+            mus.append(mu)
+            sigmas.append(sigma)
             self.training_ops.append(self.mlps[i].training_op)
             self.losses_ops.append(self.mlps[i].loss)
-
+        merged_mus = tf.concat(mus, axis=0)
+        merged_sigmas = tf.concat(sigmas, axis=0)
+        dist = tf.distributions.Normal(loc=merged_mus, scale=merged_sigmas)
+        self.predict_ops = dist.mean(), dist.stddev(), dist.sample()
