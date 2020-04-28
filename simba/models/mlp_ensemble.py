@@ -19,7 +19,8 @@ class BaseLayer(tf.keras.layers.Layer):
         x = self._dense(inputs)
         # x = self._batch_norm(x, training=training)
         x = self._activation(x)
-        return self._dropout(x, training=training)
+        # x = self._dropout(x, training=training)
+        return x
 
 
 class GaussianHead(tf.keras.layers.Layer):
@@ -56,7 +57,7 @@ class GaussianDistMlp(tf.keras.Model):
 @tf.function
 def negative_log_likelihood(y_true, mu, var):
     return 0.5 * tf.reduce_mean(tf.math.log(2.0 * np.pi * var)) + \
-           0.5 * tf.reduce_mean(tf.math.divide(tf.math.squared_difference(y_true, mu), var))
+           0.5 * tf.reduce_mean(tf.math.divide(tf.square(mu - y_true), var))
 
 
 class MlpEnsemble(object):
@@ -106,7 +107,8 @@ class MlpEnsemble(object):
                 loss = negative_log_likelihood(targets[i, ...], mu, var)
                 losses.append(loss)
                 grads = tape.gradient(loss, mlp.trainable_variables)
-                self.optimizer.apply_gradients(zip(grads, mlp.trainable_variables))
+                clipped_grads = [tf.clip_by_value(grad, -1, 1) for grad in grads]
+                self.optimizer.apply_gradients(zip(clipped_grads, mlp.trainable_variables))
         return losses
 
     def fit(self, inputs, targets):

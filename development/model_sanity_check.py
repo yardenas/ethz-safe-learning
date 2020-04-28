@@ -68,11 +68,11 @@ def make_model():
     ensemble = MlpEnsemble(
         inputs_dim=1,
         outputs_dim=1,
-        ensemble_size=5,
+        ensemble_size=1,
         n_epochs=250,
         batch_size=64,
         validation_split=0.2,
-        learning_rate=0.0007,
+        learning_rate=0.0005,
         mlp_params=mlp_dict
     )
     ensemble.build()
