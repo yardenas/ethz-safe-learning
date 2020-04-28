@@ -9,13 +9,12 @@
 # actually working and useful. In the spirit of times, I will try to learn the _hypothetical_ spreading of the COVID-19
 # disease in the _hypothetical_ island of Wakanda through the period of one year.
 from simba.models.mlp_ensemble import MlpEnsemble
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 import numpy as np
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
-from simba.infrastructure.logging_utils import TrainingLogger
 
-tf.set_random_seed(0)
+tf.random.set_seed(0)
 np.random.seed(0)
 
 
@@ -59,64 +58,26 @@ time_val = np.linspace(0, 365, 900)
 
 
 # Some hyperparameters
-def make_model(sess):
+def make_model():
     mlp_dict = dict(
-        learning_rate=0.0007,
         n_layers=5,
         units=64,
         activation=tf.nn.relu,
         dropout_rate=0.0
     )
     ensemble = MlpEnsemble(
-        sess=sess,
         inputs_dim=1,
-        scope="mlp_ensemble",
         outputs_dim=1,
         ensemble_size=5,
         n_epochs=250,
         batch_size=64,
-        validation_split=0.1,
+        validation_split=0.2,
+        learning_rate=0.0007,
         mlp_params=mlp_dict
     )
     ensemble.build()
     return ensemble
 
-
-def fit(inputs, targets, inputs_ph, targets_ph, training_ops, losses_ops,
-        model):
-    assert inputs.shape[0] == targets.shape[0], "Inputs batch size ({}) "
-    "doesn't match targets batch size ({})".format(inputs.shape[0], targets.shape[0])
-    losses = np.empty((model.epochs, model.ensemble_size))
-    n_batches = int(np.ceil(inputs.shape[0] / model.batch_size))
-    for epoch in range(model.epochs):
-        avg_loss = 0.0
-        shuffles_per_mlp = np.array([np.random.permutation(inputs.shape[0])
-                                     for _ in model.mlps])
-        x_batches = np.array_split(inputs[shuffles_per_mlp], n_batches, axis=1)
-        y_batches = np.array_split(targets[shuffles_per_mlp], n_batches, axis=1)
-        for i in range(n_batches):
-            _, loss_per_mlp = model.sess.run([training_ops, losses_ops],
-                                             feed_dict={
-                                                 inputs_ph: x_batches[i],
-                                                 targets_ph: y_batches[i]
-                                             })
-            avg_loss += np.array(loss_per_mlp) / n_batches
-        if epoch % 20 == 0:
-            print('Epoch {} | Losses {}'.format(epoch, avg_loss))
-        losses[epoch] = avg_loss
-
-
-def ensemble_negloglikelihood(mus, vars, targets, model):
-    mus_per_mlp = tf.split(mus, model.ensemble_size, axis=0, name='split_mus')
-    vars_per_mlp = tf.split(vars, model.ensemble_size, axis=0, name='split_vars')
-    losses = []
-    grad_ops = []
-    for i, (mu, var) in enumerate(zip(mus_per_mlp, vars_per_mlp)):
-        losses.append(0.5 * tf.reduce_sum(tf.log(2.0 * np.pi * var)) + 0.5 * tf.reduce_sum(
-            tf.divide(tf.squared_difference(targets[i], mu), var)
-        ))
-        grad_ops.append(tf.train.AdamOptimizer(learning_rate=model.mlp_params['learning_rate']).minimize(losses[-1]))
-    return losses, grad_ops
 
 # Run the training loop:
 n_particles = 20
@@ -125,41 +86,26 @@ x_test = np.reshape(x_test, (n_particles * time_val.shape[0]))
 data_mean = time_augmented.mean()
 data_std = time_augmented.std()
 x = np.squeeze((time_augmented - data_mean) / (data_std + 1e-8))
+x = x.astype(np.float32)
+infected_people_samples = infected_people_samples.astype(np.float32)
 x_test = (x_test - data_mean) / (data_std + 1e-8)
+x_test = x_test.astype(np.float32)
+model = make_model()
 import time as t
 
 t0 = t.time()
-with tf.Session() as sess:
-    model = make_model(sess)
-    inputs_ph = tf.placeholder(
-        dtype=tf.float32,
-        shape=(None, model.inputs_dim)
-    )
-    targets_ph = tf.placeholder(
-        dtype=tf.float32,
-        shape=(model.ensemble_size, None, model.outputs_dim)
-    )
-    with tf.name_scope("inference"):
-        mus, vars = model.predict_ops(inputs=inputs_ph)
-        dist = tf.distributions.Normal(loc=mus, scale=tf.sqrt(vars))
-        predict_ops = dist.mean(), dist.stddev(), dist.sample()
-    with tf.name_scope("training"):
-        lossess, grad_ops = ensemble_negloglikelihood(mus, vars, targets_ph, model)
-    sess.run(tf.global_variables_initializer())
-    writer = tf.summary.FileWriter('logs', sess.graph)
-    writer.close()
-    fit(inputs=x[:, np.newaxis], targets=infected_people_samples[:, np.newaxis],
-        inputs_ph=inputs_ph, targets_ph=targets_ph, losses_ops=lossess, training_ops=grad_ops,
-        model=model)
-    t1 = t.time()
-    print("train time:", t1 - t0)
-    dist = sess.run(predict_ops, feed_dict={
-        inputs_ph: np.reshape(x_test[:, np.newaxis],
-                              (model.ensemble_size, -1, model.inputs_dim))
-    })
-    t2 = t.time()
-    print("inferecne time:", t2 - t1)
-    mus, sigmas, preds = dist
+model.fit(x[:, np.newaxis], infected_people_samples[:, np.newaxis])
+t1 = t.time()
+print("train time:", t1 - t0)
+mus, sigmas, preds = np.squeeze(model.predict((x_test[:, np.newaxis])))
+t2 = t.time()
+print("pred first:", t2 - t1)
+model.predict(x_test[:, np.newaxis])
+t3 = t.time()
+print("pred sec:", t3 - t2)
+model.predict(x_test[:, np.newaxis])
+t4 = t.time()
+print("pred tihid:", t4 - t3)
 
 # The total uncertainty (epistemic and aleatoric) using monte-carlo estimation
 # using data sampled from _ensemble_size_ and _n\_particles_

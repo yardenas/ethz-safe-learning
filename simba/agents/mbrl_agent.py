@@ -5,7 +5,6 @@ from simba.infrastructure.logging_utils import logger
 from simba.agents import BaseAgent
 from simba.policies import CemMpc, RandomMpc
 from simba.models.transition_model import TransitionModel
-tf.disable_v2_behavior()
 
 
 class MbrlAgent(BaseAgent):

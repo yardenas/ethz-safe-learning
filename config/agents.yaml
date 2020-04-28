@@ -6,6 +6,6 @@ agents:
     train_interaction_steps: 250
     eval_interaction_steps: 100
     episode_length: 1000
-    warmup_timesteps: 250
+    warmup_timesteps: 2
     policy: cem_mpc
     model: mlp_ensemble
