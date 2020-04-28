@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow.compat.v1 as tf
-from simba.infrastructure.common import create_tf_session, standardize_name
+from simba.infrastructure.common import standardize_name
 from simba.infrastructure.logging_utils import logger
 from simba.agents import BaseAgent
 from simba.policies import CemMpc, RandomMpc
@@ -20,7 +20,6 @@ class MbrlAgent(BaseAgent):
                  replay_buffer_size,
                  **kwargs
                  ):
-        self._sess = create_tf_session(tf.config.list_physical_devices('GPU'))
         super().__init__(
             seed,
             replay_buffer_size)
@@ -88,9 +87,8 @@ class MbrlAgent(BaseAgent):
     def _build(self):
         self.model.build()
         self.policy.build()
-        self._sess.run(tf.global_variables_initializer())
-        writer = tf.summary.FileWriter('logs', self._sess.graph)
-        writer.close()
+        # writer = tf.summary.FileWriter('logs', tf.Graph())
+        # writer.close()
         logger.info("Done building Mbrl agent computational graph.")
 
     def _load(self):
@@ -106,7 +104,6 @@ class MbrlAgent(BaseAgent):
 
     def _make_model(self, model, model_params):
         return TransitionModel(
-            sess=self._sess,
             model=model,
             observation_space_dim=self.observation_space_dim,
             action_space_dim=self.actions_space_dim,

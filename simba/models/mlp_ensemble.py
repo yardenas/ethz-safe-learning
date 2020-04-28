@@ -12,7 +12,7 @@ class BaseLayer(tf.keras.layers.Layer):
         self._dense = tf.keras.layers.Dense(units=units)
         self._batch_norm = tf.keras.layers.BatchNormalization()
         self._dropout = tf.keras.layers.Dropout(dropout_rate)
-        self._activation = activation
+        self._activation = eval(activation) if isinstance(activation, str) else activation
 
     @tf.function
     def call(self, inputs, training=None):
@@ -60,7 +60,7 @@ def negative_log_likelihood(y_true, mu, var):
            0.5 * tf.reduce_mean(tf.math.divide(tf.square(mu - y_true), var))
 
 
-class MlpEnsemble(object):
+class MlpEnsemble(tf.Module):
     def __init__(self,
                  inputs_dim,
                  outputs_dim,
@@ -70,6 +70,7 @@ class MlpEnsemble(object):
                  validation_split,
                  learning_rate,
                  mlp_params):
+        super().__init__()
         self.inputs_dim = inputs_dim
         self.outputs_dim = outputs_dim
         self.ensemble_size = ensemble_size
@@ -107,7 +108,7 @@ class MlpEnsemble(object):
                 loss = negative_log_likelihood(targets[i, ...], mu, var)
                 losses.append(loss)
                 grads = tape.gradient(loss, mlp.trainable_variables)
-                clipped_grads = [tf.clip_by_value(grad, -1, 1) for grad in grads]
+                clipped_grads = [tf.clip_by_value(grad, -1.0, 1.0) for grad in grads]
                 self.optimizer.apply_gradients(zip(clipped_grads, mlp.trainable_variables))
         return losses
 
@@ -130,7 +131,8 @@ class MlpEnsemble(object):
             losses[epoch] = avg_loss
         return losses
 
-    def predict(self, inputs):
+    @tf.function
+    def __call__(self, inputs, *args, **kwargs):
         mu, var = self.forward(inputs)
         distribution = tfp.distributions.Normal(loc=mu, scale=tf.sqrt(var))
         return distribution.mean(), distribution.stddev(), distribution.sample()
