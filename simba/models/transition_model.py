@@ -24,19 +24,22 @@ class TransitionModel(TensorFlowBaseModel):
             **kwargs)
         self.observation_space_dim = observation_space_dim
         self.action_space_dim = action_space_dim
-        self.inputs_mean = tf.zeros((self.inputs_dim,))
-        self.inputs_stddev = tf.ones((self.inputs_dim,))
+        self.inputs_mean = tf.zeros((self.inputs_dim,), name='inputs_mean')
+        self.inputs_stddev = tf.ones((self.inputs_dim,), name='inputs_stddev')
         self.action_seqs_ph = tf.placeholder(
             dtype=tf.float32,
-            shape=(None, None, self.action_space_dim)
+            shape=(None, None, self.action_space_dim),
+            name='action_sequences_ph'
         )
         self.observations_ph = tf.placeholder(
             dtype=tf.float32,
-            shape=(None, self.observation_space_dim)
+            shape=(None, self.observation_space_dim),
+            name='observations_ph'
         )
         self.targets_ph = tf.placeholder(
             dtype=tf.float32,
-            shape=(None, self.outputs_dim)
+            shape=(None, self.outputs_dim),
+            name='targets_ph'
         )
         self.propagated_trajectories = None
 
@@ -71,21 +74,20 @@ class TransitionModel(TensorFlowBaseModel):
         )
 
     def propagation_op(self, s_t, action_sequences):
-        horizon = tf.shape(action_sequences)[1]
-        trajectories = tf.expand_dims(s_t, axis=1)
+        horizon = 1
+        trajectories = tf.expand_dims(s_t, axis=1, name='trajectories')
 
         def per_timestep(s_t_a_t, t, trajectories):
-            s_t_1_cond_s_t_a_t = self.predict_ops(s_t_a_t)
+            _, _, s_t_1_cond_s_t_a_t = self.predict_ops(s_t_a_t)
             a_t_1 = action_sequences[:, t + 1, ...]
-            return tf.concat([s_t_1_cond_s_t_a_t, a_t_1], axis=1), \
-                   (t + 1), tf.concat([trajectories, tf.expand_dims(s_t_1_cond_s_t_a_t, axis=1)], axis=1)
+            return tf.concat([s_t_1_cond_s_t_a_t, a_t_1], axis=1), (t + 1), \
+                   tf.concat([trajectories, tf.expand_dims(s_t_1_cond_s_t_a_t, axis=1)], axis=1)
 
         s_0_a_0 = tf.concat([s_t, action_sequences[:, 0, ...]], axis=1)
-        t_0 = tf.constant(0)
+        t_0 = tf.constant(0, dtype=tf.int32)
         tf.TensorShape([None, None, self.outputs_dim])
-
         tf.while_loop(
-            cond=lambda _, t, *unused: tf.less(t, horizon - 1),
+            cond=lambda _, t, *args: tf.less(t, horizon),
             body=per_timestep,
             loop_vars=[s_0_a_0, t_0, trajectories],
             shape_invariants=[s_0_a_0.get_shape(),

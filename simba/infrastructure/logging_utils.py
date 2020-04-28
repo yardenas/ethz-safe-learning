@@ -73,10 +73,9 @@ class TrainingLogger:
         """figure: matplotlib.pyplot figure handle"""
         self._summ_writer.add_figure('{}_{}'.format(name, phase), figure, step)
 
-    def log_graph(self, array, name, step, phase):
+    def log_graph(self, graph, step, phase):
         """figure: matplotlib.pyplot figure handle"""
-        im = plot_graph(array)
-        self._summ_writer.add_image('{}_{}'.format(name, phase), im, step)
+        self._summ_writer.add_graph(graph)
 
     def dump_scalars(self, log_path=None):
         log_path = os.path.join(self._log_dir, "scalar_data.json") if log_path is None else log_path

@@ -67,8 +67,10 @@ class CemMpc(PolicyBase):
             # If a trajectory was already predicted to be over in previous timesteps, it should remain done.
             done_trajectories = np.logical_and(
                 np.reshape(self.is_done(s_t, a_t), (particles, self.n_samples)), done_trajectories)
+            logger.info("tiiccccc")
             s_t_1_samples = \
                 np.squeeze(self.model.predict(np.concatenate([s_t, a_t], axis=1)))
+            logger.info("taaaccc {}".format(s_t_1_samples.shape))
             # Predict outcomes of future states conditioned on a_t_1.
             a_t_1 = action_batches[:, t + 1, ...]
             rewards_batch = self.reward(s_t_1_samples, a_t_1)
@@ -79,7 +81,6 @@ class CemMpc(PolicyBase):
             # TODO (yarden): decide if we propagate the mean or a random sample (I think a random sample.)
             s_t = s_t_1_samples
         return np.array(rewards, copy=False)
-
 
     @property
     def sampling_params(self):

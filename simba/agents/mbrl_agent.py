@@ -90,6 +90,8 @@ class MbrlAgent(BaseAgent):
         self.model.build()
         self.policy.build()
         self._sess.run(tf.global_variables_initializer())
+        writer = tf.summary.FileWriter('logs', self._sess.graph)
+        writer.close()
         logger.info("Done building Mbrl agent computational graph.")
 
     def _load(self):
