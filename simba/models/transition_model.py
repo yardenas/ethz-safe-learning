@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 from simba.infrastructure.common import standardize_name
-from simba.models import BaseModel, AnchoredMlpEnsemble, MlpEnsemble
+from simba.models import BaseModel, MlpEnsemble
 
 
 class TransitionModel(BaseModel):
@@ -51,8 +51,8 @@ class TransitionModel(BaseModel):
             a_t = action_sequences[:, t, ...]
             s_t_a_t = tf.concat([s_t, a_t], axis=1)
             _, _, s_t = self.model(s_t_a_t)
-            trajectories.write(t, s_t)
-        return trajectories.stack()
+            trajectories = trajectories.write(t, s_t)
+        return tf.transpose(trajectories.stack(), [1, 0, 2])
 
     def save(self):
         pass

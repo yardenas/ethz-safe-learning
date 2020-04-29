@@ -12,7 +12,7 @@ class MbrlInvertedPendulumEnv(InvertedPendulumEnv, MbrlEnv):
         assert obs.ndim == 2 and acs.ndim == 2, \
             "Expected inputs with shape (batch_size, dim), got shapes {} and {}" \
                 .format(obs.shape, acs.shape)
-        return np.ones(shape=(obs.shape[0], 1))
+        return np.ones(shape=(obs.shape[0],))
 
     def is_done(self, obs, acs):
         assert obs.ndim == 2 and acs.ndim == 2, \

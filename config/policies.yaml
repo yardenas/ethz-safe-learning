@@ -6,3 +6,4 @@ policies:
     smoothing: 0.
     n_samples: 400
     n_elite: 40
+    particles: 20

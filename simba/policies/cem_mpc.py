@@ -15,7 +15,8 @@ class CemMpc(PolicyBase):
                  objective,
                  smoothing,
                  n_samples,
-                 n_elite):
+                 n_elite,
+                 particles):
         super().__init__()
         self.model = model
         self.reward = environment.get_rewards
@@ -28,6 +29,7 @@ class CemMpc(PolicyBase):
         self.smoothing = smoothing
         self.n_samples = n_samples
         self.elite = n_elite
+        self.particles = particles
 
     def generate_action(self, state):
         # TODO (yarden): if env.is_done == True stop propagating (or at least add 0 to rewards...)
@@ -37,7 +39,11 @@ class CemMpc(PolicyBase):
                 a=lb, b=ub, loc=mu, scale=sigma,
                 size=(self.n_samples, self.horizon, self.action_space.shape[0])
             )
-            rewards_along_trajectories = self.simulate_trajectories(state, action_sequences)
+            # Propagate the same action sequences for #particles to get better statistics estimates.
+            action_sequences_batch = np.tile(action_sequences, (self.particles, 1, 1))
+            trajectories = self.model.simulate_trajectories(
+                np.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch)
+            rewards_along_trajectories = self.compute_rewards_along_trajectories(trajectories, action_sequences_batch)
             trajectories_scores = np.argsort(self.objective(rewards_along_trajectories))
             elite = action_sequences[trajectories_scores[-self.elite:], ...]
             elite_mu, elite_sigma = elite.mean(axis=0), elite.std(axis=0)
@@ -47,40 +53,20 @@ class CemMpc(PolicyBase):
                 break
         return mu[0]
 
+    def compute_rewards_along_trajectories(self, trajectories, action_sequences):
+        rewards = np.zeros((trajectories.shape[0], trajectories.shape[1]))
+        done_trajectories = np.zeros((trajectories.shape[0]), dtype=bool)
+        for t in range(self.horizon):
+            s_t = trajectories[:, t, ...]
+            a_t = action_sequences[:, t, ...]
+            done_trajectories = np.logical_or(
+                self.is_done(s_t, a_t), done_trajectories)
+            rewards[:, t, ...] = self.reward(s_t, a_t) * (1 - done_trajectories)
+        return rewards
+
     def build(self):
         logger.debug("Building policy.")
         pass
-
-    def simulate_trajectories(self, current_state, action_sequences):
-        particles = 20
-        # TODO (yarden): not sure about this copy.
-        s_t = np.broadcast_to(current_state.copy(),
-                              (particles * self.n_samples, current_state.shape[0]))
-        action_batches = np.broadcast_to(action_sequences,
-                                         (particles, self.n_samples, self.horizon, self.action_space.shape[0]))
-        action_batches = np.reshape(action_batches,
-                                    (particles * self.n_samples, self.horizon, self.action_space.shape[0]))
-        rewards = []
-        done_trajectories = np.zeros((particles, self.n_samples), dtype=bool)
-        for t in range(self.horizon - 1):
-            a_t = action_batches[:, t, ...]
-            # If a trajectory was already predicted to be over in previous timesteps, it should remain done.
-            done_trajectories = np.logical_and(
-                np.reshape(self.is_done(s_t, a_t), (particles, self.n_samples)), done_trajectories)
-            logger.info("tiiccccc")
-            s_t_1_samples = \
-                np.squeeze(self.model.predict(np.concatenate([s_t, a_t], axis=1)))
-            logger.info("taaaccc {}".format(s_t_1_samples.shape))
-            # Predict outcomes of future states conditioned on a_t_1.
-            a_t_1 = action_batches[:, t + 1, ...]
-            rewards_batch = self.reward(s_t_1_samples, a_t_1)
-            reward_per_particle = np.reshape(rewards_batch, (-1, particles, self.n_samples))
-            # Arrange rewards in shape: (n_action_seqs, n_mlps, particles_per_mlp, samples_per_particle)
-            # 'dead' particles recieve 0 reward.
-            rewards.append(reward_per_particle)
-            # TODO (yarden): decide if we propagate the mean or a random sample (I think a random sample.)
-            s_t = s_t_1_samples
-        return np.array(rewards, copy=False)
 
     @property
     def sampling_params(self):

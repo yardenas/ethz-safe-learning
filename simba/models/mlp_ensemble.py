@@ -10,16 +10,14 @@ class BaseLayer(tf.keras.layers.Layer):
                  dropout_rate):
         super().__init__()
         self._dense = tf.keras.layers.Dense(units=units)
-        self._batch_norm = tf.keras.layers.BatchNormalization()
-        self._dropout = tf.keras.layers.Dropout(dropout_rate)
         self._activation = eval(activation) if isinstance(activation, str) else activation
+        self._dropout = tf.keras.layers.Dropout(dropout_rate)
 
     @tf.function
     def call(self, inputs, training=None):
         x = self._dense(inputs)
-        # x = self._batch_norm(x, training=training)
         x = self._activation(x)
-        # x = self._dropout(x, training=training)
+        x = self._dropout(x, training=training)
         return x
 
 
@@ -79,12 +77,12 @@ class MlpEnsemble(tf.Module):
         self.validation_split = validation_split
         self.learning_rate = learning_rate
         self.mlp_params = mlp_params
-        self.ensemble = None
+        self.ensemble = [GaussianDistMlp(outputs_dim=self.outputs_dim, **self.mlp_params)
+                         for _ in range(self.ensemble_size)]
         self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
     def build(self):
-        self.ensemble = [GaussianDistMlp(outputs_dim=self.outputs_dim, **self.mlp_params)
-                         for _ in range(self.ensemble_size)]
+        pass
 
     @tf.function
     def forward(self, inputs):
@@ -92,7 +90,7 @@ class MlpEnsemble(tf.Module):
         ensemble_mus = []
         ensemble_vars = []
         for mlp_inputs, mlp in zip(inputs_per_mlp, self.ensemble):
-            mu, var = mlp(mlp_inputs)
+            mu, var = mlp(mlp_inputs, training=False)
             ensemble_mus.append(mu)
             ensemble_vars.append(var)
         cat_mus = tf.concat(ensemble_mus, axis=0)
@@ -104,7 +102,7 @@ class MlpEnsemble(tf.Module):
         losses = []
         for i, mlp in enumerate(self.ensemble):
             with tf.GradientTape() as tape:
-                mu, var = mlp(inputs[i, ...])
+                mu, var = mlp(inputs[i, ...], training=True)
                 loss = negative_log_likelihood(targets[i, ...], mu, var)
                 losses.append(loss)
                 grads = tape.gradient(loss, mlp.trainable_variables)
