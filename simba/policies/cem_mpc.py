@@ -33,6 +33,7 @@ class CemMpc(PolicyBase):
 
     def generate_action(self, state):
         lb, ub, mu, sigma = self.sampling_params
+        elite = mu
         for i in range(self.iterations):
             action_sequences = truncnorm.rvs(
                 a=lb, b=ub, loc=mu, scale=sigma,
@@ -43,14 +44,15 @@ class CemMpc(PolicyBase):
             trajectories = self.model.simulate_trajectories(
                 np.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch)
             rewards_along_trajectories = self.compute_rewards_along_trajectories(trajectories, action_sequences_batch)
-            trajectories_ranking = np.argsort(self.objective(rewards_along_trajectories))
+            scores = self.objective(rewards_along_trajectories)
+            trajectories_ranking = np.argsort(scores)
             elite = action_sequences[trajectories_ranking[-self.elite:], ...]
             elite_mu, elite_sigma = elite.mean(axis=0), elite.std(axis=0)
             mu = self.smoothing * mu + (1.0 - self.smoothing) * elite_mu
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * elite_sigma
-            if np.max(sigma) < 1e-2:
+            if np.max(sigma) < 1e-1:
                 break
-        return mu[0]
+        return elite[0, 0, ...]
 
     def compute_rewards_along_trajectories(self, trajectories, action_sequences):
         rewards = np.zeros((trajectories.shape[0], trajectories.shape[1]))

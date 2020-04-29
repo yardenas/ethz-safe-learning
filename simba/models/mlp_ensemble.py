@@ -133,4 +133,5 @@ class MlpEnsemble(tf.Module):
     def __call__(self, inputs, *args, **kwargs):
         mu, var = self.forward(inputs)
         distribution = tfp.distributions.Normal(loc=mu, scale=tf.sqrt(var))
-        return distribution.mean(), distribution.stddev(), distribution.sample()
+        # distribution.mean(), distribution.stddev(),
+        return distribution.sample()

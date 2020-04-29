@@ -19,8 +19,8 @@ class TransitionModel(BaseModel):
             **kwargs)
         self.observation_space_dim = observation_space_dim
         self.action_space_dim = action_space_dim
-        self.inputs_mean = np.zeros((self.inputs_dim,))
-        self.inputs_stddev = np.ones((self.inputs_dim,))
+        self.inputs_mean = tf.zeros((self.inputs_dim,))
+        self.inputs_stddev = tf.ones((self.inputs_dim,))
 
     def build(self):
         self.model.build()
@@ -28,9 +28,11 @@ class TransitionModel(BaseModel):
     def fit(self, inputs, targets):
         self.inputs_mean = tf.convert_to_tensor(inputs.mean(axis=0))
         self.inputs_stddev = tf.convert_to_tensor(inputs.std(axis=0))
+        observations = inputs[:, self.observation_space_dim:]
+        next_observations = targets
         return self.model.fit(
             (inputs - self.inputs_mean.numpy()) / (self.inputs_stddev.numpy() + 1e-8),
-            targets)
+            next_observations - observations)
 
     def predict(self, inputs):
         return self.simulate_trajectories(
@@ -40,10 +42,9 @@ class TransitionModel(BaseModel):
 
     def simulate_trajectories(self, current_state, action_sequences):
         return self.propagate(
-            (current_state.astype(np.float32) - self.inputs_mean[:self.observation_space_dim]) /
-            (self.inputs_stddev[:self.observation_space_dim] + 1e-8),
-            (action_sequences.astype(np.float32) - self.inputs_mean[-self.action_space_dim:]) /
-            (self.inputs_stddev[-self.action_space_dim:] + 1e-8))
+            current_state.astype(np.float32),
+            action_sequences.astype(np.float32)
+        )
 
     @tf.function
     def propagate(self, s_0, action_sequences):
@@ -52,10 +53,16 @@ class TransitionModel(BaseModel):
         s_t = s_0
         for t in tf.range(horizon):
             a_t = action_sequences[:, t, ...]
-            s_t_a_t = (tf.concat([s_t, a_t], axis=1) - self.inputs_mean) / (self.inputs_stddev + 1e-8)
-            _, _, s_t = self.model(s_t_a_t)
+            s_t_a_t = self.process_inputs(tf.concat([s_t, a_t], axis=1))
+            # The model predicts s_t_1 - s_t hence we add here the previous state.
+            d_s_t = self.model(s_t_a_t)
+            s_t += d_s_t
             trajectories = trajectories.write(t, s_t)
         return tf.transpose(trajectories.stack(), [1, 0, 2])
+
+    @tf.function
+    def process_inputs(self, inputs):
+        return (inputs - self.inputs_mean) / (self.inputs_stddev + 1e-8)
 
     def save(self):
         pass
