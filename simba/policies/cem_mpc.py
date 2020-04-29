@@ -25,7 +25,7 @@ class CemMpc(PolicyBase):
         assert isinstance(self.action_space, spaces.Box), "Expecting only box as action space."
         self.horizon = horizon
         self.iterations = iterations
-        self.objective = lambda t: np.mean(np.sum(t, axis=1), axis=0)
+        self.objective = self.pets_objective
         self.smoothing = smoothing
         self.n_samples = n_samples
         self.elite = n_elite
@@ -43,8 +43,8 @@ class CemMpc(PolicyBase):
             trajectories = self.model.simulate_trajectories(
                 np.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch)
             rewards_along_trajectories = self.compute_rewards_along_trajectories(trajectories, action_sequences_batch)
-            trajectories_scores = np.argsort(self.objective(rewards_along_trajectories))
-            elite = action_sequences[trajectories_scores[-self.elite:], ...]
+            trajectories_ranking = np.argsort(self.objective(rewards_along_trajectories))
+            elite = action_sequences[trajectories_ranking[-self.elite:], ...]
             elite_mu, elite_sigma = elite.mean(axis=0), elite.std(axis=0)
             mu = self.smoothing * mu + (1.0 - self.smoothing) * elite_mu
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * elite_sigma
@@ -82,3 +82,7 @@ class CemMpc(PolicyBase):
             mean = 0.0
             stddev = 1.0
         return lower_bound, upper_bound, mean, stddev
+
+    def pets_objective(self, rewards_along_trajectories):
+        rewards_per_sample = rewards_along_trajectories.reshape((self.n_samples, self.particles, self.horizon))
+        return np.mean(rewards_per_sample.sum(axis=2), axis=1)

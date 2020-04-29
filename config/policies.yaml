@@ -3,7 +3,7 @@ policies:
     horizon: 12
     iterations: 5
     objective: TODOYARDEN
-    smoothing: 0.9
+    smoothing: 0.1
     n_samples: 400
     n_elite: 40
     particles: 20

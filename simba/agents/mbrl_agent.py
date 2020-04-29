@@ -52,8 +52,8 @@ class MbrlAgent(BaseAgent):
             observations,
             actions], axis=1
         )
-        loesses = self.model.fit(observations_with_actions, next_observations)
-        self.training_report['losses'] = loesses
+        losses = self.model.fit(observations_with_actions, next_observations)
+        self.training_report['losses'] = losses
 
     def _interact(self, environment):
         if not self.warm:
