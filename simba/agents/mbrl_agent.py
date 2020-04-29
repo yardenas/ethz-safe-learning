@@ -49,7 +49,7 @@ class MbrlAgent(BaseAgent):
     def update(self):
         # TODO (yarden): not sure about random data, maybe everything, maybe sample N trajectories.
         observations, actions, next_observations, _, _ = \
-            self.replay_buffer.sample_random_rollouts(374)
+            self.replay_buffer.sample_recent_data(self.train_batch_size)
         observations_with_actions = np.concatenate([
             observations,
             actions], axis=1
@@ -61,10 +61,6 @@ class MbrlAgent(BaseAgent):
         report = dict()
         return report
 
-    # TODO (yarden): In MB we need not only to sample trajectories with the
-    #  environment but also score each trajectory with it => assign the environment
-    #  to the policy. Or a better way: the policy should get the relevant scoring
-    #  function in its constructor.
     def _interact(self, environment):
         if not self.warm:
             samples, timesteps_this_batch = self.sample_trajectories(

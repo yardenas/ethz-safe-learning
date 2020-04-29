@@ -32,7 +32,6 @@ class CemMpc(PolicyBase):
         self.particles = particles
 
     def generate_action(self, state):
-        # TODO (yarden): if env.is_done == True stop propagating (or at least add 0 to rewards...)
         lb, ub, mu, sigma = self.sampling_params
         for i in range(self.iterations):
             action_sequences = truncnorm.rvs(
@@ -49,7 +48,7 @@ class CemMpc(PolicyBase):
             elite_mu, elite_sigma = elite.mean(axis=0), elite.std(axis=0)
             mu = self.smoothing * mu + (1.0 - self.smoothing) * elite_mu
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * elite_sigma
-            if np.max(sigma) < 1:
+            if np.max(sigma) < 1e-2:
                 break
         return mu[0]
 

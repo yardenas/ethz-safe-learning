@@ -13,7 +13,6 @@ class BaseAgent(object):
                  ):
         self.replay_buffer = rb.ReplayBuffer(replay_buffer_size)
         self.set_random_seeds(seed)
-        # TODO (yarden): make this better.
 
     def set_random_seeds(self, seed):
         raise NotImplementedError("Random seeds function must be implemented.")

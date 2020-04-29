@@ -29,9 +29,9 @@ class TransitionModel(BaseModel):
     def fit(self, inputs, targets):
         self.inputs_mean = tf.convert_to_tensor(inputs.mean(axis=0))
         self.inputs_stddev = tf.convert_to_tensor(inputs.std(axis=0))
-        # self.model.fit(
-        #     (inputs - self.inputs_mean) / (self.inputs_stddev + 1e-8),
-        #     targets)
+        self.model.fit(
+            (inputs - self.inputs_mean) / (self.inputs_stddev + 1e-8),
+            targets)
 
     def predict(self, inputs):
         return self.simulate_trajectories(

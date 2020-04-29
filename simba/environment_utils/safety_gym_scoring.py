@@ -11,7 +11,7 @@ class SafetyGymStateScorer(object):
 
     def reset(self, observation):
         if self.task in ['goal', 'button']:
-            self.last_dist_goal =  self.goal_button_distance_metric(observation)
+            self.last_dist_goal = self.goal_button_distance_metric(observation)
         elif self.task == 'push':
             self.last_box_goal, self.last_dist_box = self.push_distance_metric(observation)
 
@@ -25,7 +25,7 @@ class SafetyGymStateScorer(object):
         if self.task in ['goal', 'button']:
             dist_goal = self.goal_button_distance_metric(observations)
             reward += (self.last_dist_goal - dist_goal) * self.reward_distance + \
-                (dist_goal <= self.goal_size) * self.reward_goal
+                      (dist_goal <= self.goal_size) * self.reward_goal
             self.last_dist_goal = dist_goal
         # Distance from robot to box
         elif self.task == 'push':
@@ -83,7 +83,7 @@ class SafetyGymStateScorer(object):
                 cost += buttons_dist <= self.buttons_size
             if self.constrain_gremlins:
                 gremlins_lidar = observations[:,
-                                -2 * self.lidar_num_bins:-self.lidar_num_bins]
+                                 -2 * self.lidar_num_bins:-self.lidar_num_bins]
                 gremlins_dist = self.closest_distance(gremlins_lidar)
                 # TODO (yarden): not sure if keepout or size
                 cost += gremlins_dist <= self.gremlins_keepout
@@ -115,7 +115,7 @@ class SafetyGymStateScorer(object):
             observations
         box_observed = np.any(observations_exp[:, 3:3 + self.lidar_num_bins] > 0.0)
         goal_observed = np.any(observations_exp[:,
-            3 + self.lidar_num_bins:3 + 2 * self.lidar_num_bins] > 0.0)
+                               3 + self.lidar_num_bins:3 + 2 * self.lidar_num_bins] > 0.0)
         if goal_observed and box_observed:
             dist_box = self.closest_distance(
                 observations_exp[:, 3:3 + self.lidar_num_bins]
@@ -146,7 +146,7 @@ class SafetyGymStateScorer(object):
             return -np.log(np.max(lidar_measurement, axis=1) + 1e-100) / self.lidar_exp_gain
         else:
             return np.minimum(self.lidar_max_dist - np.max(lidar_measurement, axis=1) * self.lidar_max_dist - 0.018,
-                       self.lidar_max_dist)
+                              self.lidar_max_dist)
 
     def average_direction(self, lidar_measurement):
         angles = np.arange(self.lidar_num_bins) * 2.0 * np.pi / self.lidar_num_bins
