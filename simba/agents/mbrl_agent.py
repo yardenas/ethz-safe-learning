@@ -36,6 +36,7 @@ class MbrlAgent(BaseAgent):
             "Did not specify a policy or a model."
         self.model = self._make_model(kwargs.pop('model'), kwargs.pop('model_params'))
         self.policy = self._make_policy(kwargs.pop('policy'), kwargs.pop('policy_params'))
+        self.training_report = dict()
 
     def set_random_seeds(self, seed):
         if seed is not None:
@@ -48,18 +49,17 @@ class MbrlAgent(BaseAgent):
 
     def update(self):
         # TODO (yarden): not sure about random data, maybe everything, maybe sample N trajectories.
-        observations, actions, next_observations, _, _ = \
+        observations, actions, _, next_observations, _ = \
             self.replay_buffer.sample_recent_data(self.train_batch_size)
         observations_with_actions = np.concatenate([
             observations,
             actions], axis=1
         )
-        # We're fitting s_(t + 1) - s_(t) to improve numerical stability.
-        self.model.fit(observations_with_actions, next_observations)
+        loesses = self.model.fit(observations_with_actions, next_observations)
+        self.training_report['losses'] = loesses
 
     def report(self):
-        report = dict()
-        return report
+        return self.training_report
 
     def _interact(self, environment):
         if not self.warm:
@@ -83,8 +83,6 @@ class MbrlAgent(BaseAgent):
     def _build(self):
         self.model.build()
         self.policy.build()
-        # writer = tf.summary.FileWriter('logs', tf.Graph())
-        # writer.close()
         logger.info("Done building Mbrl agent computational graph.")
 
     def _load(self):

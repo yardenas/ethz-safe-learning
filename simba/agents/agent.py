@@ -7,6 +7,7 @@ class BaseAgent(object):
     A base class for RL agents. An RL agent inherits from this
     class and implements a concrete RL algorithm.
     """
+
     def __init__(self,
                  seed,
                  replay_buffer_size,
@@ -22,9 +23,6 @@ class BaseAgent(object):
         self.replay_buffer.store(samples)
 
     def update(self):
-        raise NotImplementedError
-
-    def report(self):
         raise NotImplementedError
 
     def _interact(self, environment):
@@ -43,6 +41,22 @@ class BaseAgent(object):
 
     def _load(self):
         raise NotImplementedError
+
+    def report(self):
+        raise NotImplementedError
+
+    def render_trajectory(
+            self,
+            environment,
+            policy,
+            max_trajectory_length):
+        observation = environment.reset()
+        images = []
+        for t in range(max_trajectory_length):
+            images.append(environment.render(mode='rgb_array'))
+            action = policy.generate_action(observation)
+            _, _, _, _ = environment.step(action)
+        return images
 
     def sample_trajectories(
             self,
@@ -67,8 +81,8 @@ class BaseAgent(object):
             max_trajectory_length):
         observation = environment.reset()
         observations, actions, \
-            rewards, next_observations, \
-            terminals, image_obs = [], [], [], [], [], []
+        rewards, next_observations, \
+        terminals, image_obs = [], [], [], [], [], []
         steps = 0
         while True:
             observations.append(observation)

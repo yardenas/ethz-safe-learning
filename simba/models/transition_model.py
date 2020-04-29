@@ -20,16 +20,16 @@ class TransitionModel(BaseModel):
             **kwargs)
         self.observation_space_dim = observation_space_dim
         self.action_space_dim = action_space_dim
-        self.inputs_mean = tf.zeros((self.inputs_dim,), name='inputs_mean')
-        self.inputs_stddev = tf.ones((self.inputs_dim,), name='inputs_stddev')
+        self.inputs_mean = np.zeros((self.inputs_dim,))
+        self.inputs_stddev = np.ones((self.inputs_dim,))
 
     def build(self):
         self.model.build()
 
     def fit(self, inputs, targets):
-        self.inputs_mean = tf.convert_to_tensor(inputs.mean(axis=0))
-        self.inputs_stddev = tf.convert_to_tensor(inputs.std(axis=0))
-        self.model.fit(
+        self.inputs_mean = inputs.mean(axis=0)
+        self.inputs_stddev = inputs.std(axis=0)
+        return self.model.fit(
             (inputs - self.inputs_mean) / (self.inputs_stddev + 1e-8),
             targets)
 

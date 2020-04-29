@@ -22,6 +22,7 @@ setup(
         'tensorflow>=1.13.1',
         'pyyaml~=5.3.1',
         'tensorboardx==1.8',
-        'scipy~=1.4.1'
+        'scipy~=1.4.1',
+        'moviepy==1.0.0'
     ]
 )

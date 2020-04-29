@@ -1,8 +1,8 @@
 policies:
   cem_mpc:
-    horizon: 12
+    horizon: 15
     iterations: 5
-    objective: identity
+    objective: TODOYARDEN
     smoothing: 0.
     n_samples: 400
     n_elite: 40

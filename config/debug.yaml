@@ -1,10 +1,10 @@
 options:
   trainer_options:
-    video_log_frequency: 0
-    log_frequency: 0
+    video_log_frequency: 1
+    log_frequency: 1
+    max_video_length: 40
     training_logger_params:
       fps: 15
-      max_video_length: 40
   seed: 123
   agent: mbrl_agent
   environment: MbrlInvertedPendulum-v2

@@ -1,3 +1,5 @@
+import numpy as np
+
 from simba.infrastructure.logging_utils import TrainingLogger
 from simba.infrastructure.logging_utils import logger
 
@@ -8,11 +10,13 @@ class RLTrainer(object):
                  environemnt,
                  log_frequency,
                  video_log_frequency,
+                 max_video_length,
                  training_logger_params):
         self.agent = agent
         self.environment = environemnt
         self.training_logger = TrainingLogger(**training_logger_params)
         self.log_frequency = log_frequency
+        self.max_video_length = max_video_length
         self.video_log_frequency = video_log_frequency
 
     def train(self):
@@ -26,7 +30,11 @@ class RLTrainer(object):
             if self.log_frequency > 0 and iteration % self.log_frequency == 0:
                 self.log(self.agent.report(), iteration)
             if self.log_frequency > 0 and iteration % self.video_log_frequency == 0:
-                self.log_video(self.agent.say_cheese(), iteration)
+                self.log_video(self.agent.render_trajectory(
+                    environment=self.environment,
+                    policy=self.agent.policy,
+                    max_trajectory_length=self.max_video_length
+                ), iteration)
             iteration += 1
 
     def play_trained_model(self):
@@ -37,8 +45,15 @@ class RLTrainer(object):
         """
         Takes a report from the agent and logs it.
         """
+        losses = report.pop('losses')
+        for i, loss in enumerate(losses):
+            self.training_logger.log_scalars(
+                scalar_dict={'loss': loss},
+                group_name='model_training_losses',
+                step=i,
+                phase=epoch
+            )
         for key, value in report.items():
-            print('{} : {}'.format(key, value))
             self.training_logger.log_scalar(value, key, epoch)
         self.training_logger.flush()
 
@@ -46,8 +61,9 @@ class RLTrainer(object):
         """
         Logs videos from rendered trajectories.
         """
-        self.training_logger.log_paths_as_videos(
-            trajectory_records, epoch,
-            len(trajectory_records)
-        )
-
+        trajectory_rendering = trajectory_records
+        video = np.transpose(trajectory_rendering, [0, 3, 1, 2])
+        self.training_logger.log_video(
+            np.expand_dims(video, axis=0),
+            'what_the_policy_looks_like',
+            epoch)

@@ -25,7 +25,7 @@ class CemMpc(PolicyBase):
         assert isinstance(self.action_space, spaces.Box), "Expecting only box as action space."
         self.horizon = horizon
         self.iterations = iterations
-        self.objective = lambda t: 1.0
+        self.objective = lambda t: np.mean(np.sum(t, axis=1), axis=0)
         self.smoothing = smoothing
         self.n_samples = n_samples
         self.elite = n_elite

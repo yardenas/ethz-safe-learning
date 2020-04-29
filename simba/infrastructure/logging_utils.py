@@ -23,11 +23,9 @@ class TrainingLogger:
     """
     def __init__(self,
                  log_dir,
-                 fps,
-                 max_video_length):
+                 fps):
         self._log_dir = log_dir
-        self.fps = fps,
-        self.max_video_length = max_video_length
+        self.fps = fps
         logger.info('Logging training data to: ' + log_dir)
         self._summ_writer = SummaryWriter(log_dir, flush_secs=1, max_queue=1)
 
@@ -45,24 +43,6 @@ class TrainingLogger:
     def log_video(self, video_frames, name, step):
         assert len(video_frames.shape) == 5, "Need [N, T, C, H, W] input tensor for video logging!"
         self._summ_writer.add_video('{}'.format(name), video_frames, step, fps=self.fps)
-
-    def log_paths_as_videos(self, paths, step, max_videos_to_save=2, video_title='video'):
-        # reshape the rollouts
-        videos = [np.transpose(p['image_obs'], [0, 3, 1, 2]) for p in paths]
-        # max rollout length
-        max_videos_to_save = np.min([max_videos_to_save, len(videos)])
-        max_length = videos[0].shape[0]
-        for i in range(max_videos_to_save):
-            if videos[i].shape[0]>max_length:
-                max_length = videos[i].shape[0]
-        # pad rollouts to all be same length
-        for i in range(max_videos_to_save):
-            if videos[i].shape[0]<max_length:
-                padding = np.tile([videos[i][-1]], (max_length-videos[i].shape[0],1,1,1))
-                videos[i] = np.concatenate([videos[i], padding], 0)
-        # log videos to tensorboard event file
-        videos = np.stack(videos[:max_videos_to_save], 0)
-        self.log_video(videos, video_title, step, fps=self.fps)
 
     def log_figures(self, figure, name, step, phase):
         """figure: matplotlib.pyplot figure handle"""

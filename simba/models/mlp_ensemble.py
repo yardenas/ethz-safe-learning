@@ -127,7 +127,7 @@ class MlpEnsemble(tf.Module):
             if epoch % 20 == 0:
                 print('Epoch {} | Losses {}'.format(epoch, avg_loss))
             losses[epoch] = avg_loss
-        return losses
+        return losses.mean(axis=1)
 
     @tf.function
     def __call__(self, inputs, *args, **kwargs):
