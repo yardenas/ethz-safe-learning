@@ -6,3 +6,7 @@ register(
     entry_point='simba.environment_utils.inverted_pendulum:MbrlInvertedPendulumEnv'
 )
 
+register(
+    id='MbrlCartpole-v0',
+    entry_point='simba.environment_utils.inverted_pendulum:CartpoleEnv'
+)

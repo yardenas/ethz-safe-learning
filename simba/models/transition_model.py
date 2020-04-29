@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-
 from simba.infrastructure.common import standardize_name
 from simba.models import BaseModel, MlpEnsemble
 
@@ -27,10 +26,10 @@ class TransitionModel(BaseModel):
         self.model.build()
 
     def fit(self, inputs, targets):
-        self.inputs_mean = inputs.mean(axis=0)
-        self.inputs_stddev = inputs.std(axis=0)
+        self.inputs_mean = tf.convert_to_tensor(inputs.mean(axis=0))
+        self.inputs_stddev = tf.convert_to_tensor(inputs.std(axis=0))
         return self.model.fit(
-            (inputs - self.inputs_mean) / (self.inputs_stddev + 1e-8),
+            (inputs - self.inputs_mean.numpy()) / (self.inputs_stddev.numpy() + 1e-8),
             targets)
 
     def predict(self, inputs):
@@ -40,7 +39,11 @@ class TransitionModel(BaseModel):
         )
 
     def simulate_trajectories(self, current_state, action_sequences):
-        return self.propagate(current_state.astype(np.float32), action_sequences.astype(np.float32))
+        return self.propagate(
+            (current_state.astype(np.float32) - self.inputs_mean[:self.observation_space_dim]) /
+            (self.inputs_stddev[:self.observation_space_dim] + 1e-8),
+            (action_sequences.astype(np.float32) - self.inputs_mean[-self.action_space_dim:]) /
+            (self.inputs_stddev[-self.action_space_dim:] + 1e-8))
 
     @tf.function
     def propagate(self, s_0, action_sequences):
@@ -49,7 +52,7 @@ class TransitionModel(BaseModel):
         s_t = s_0
         for t in tf.range(horizon):
             a_t = action_sequences[:, t, ...]
-            s_t_a_t = tf.concat([s_t, a_t], axis=1)
+            s_t_a_t = (tf.concat([s_t, a_t], axis=1) - self.inputs_mean) / (self.inputs_stddev + 1e-8)
             _, _, s_t = self.model(s_t_a_t)
             trajectories = trajectories.write(t, s_t)
         return tf.transpose(trajectories.stack(), [1, 0, 2])

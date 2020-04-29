@@ -97,6 +97,7 @@ class BaseAgent(object):
             actions.append(action)
             observation, reward, done, _ = \
                 environment.step(action)
+            logger.debug("Taking action.")
             steps += 1
             next_observations.append(observation)
             rewards.append(reward)
