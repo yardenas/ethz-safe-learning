@@ -14,13 +14,20 @@ class BaseAgent(object):
                  ):
         self.replay_buffer = rb.ReplayBuffer(replay_buffer_size)
         self.set_random_seeds(seed)
+        self.training_report = dict()
+        self.total_training_steps = 0
 
     def set_random_seeds(self, seed):
         raise NotImplementedError("Random seeds function must be implemented.")
 
     def interact(self, environment):
-        samples = self._interact(environment)
+        samples, timesteps_this_batch = self._interact(environment)
+        self.total_training_steps += timesteps_this_batch
         self.replay_buffer.store(samples)
+        self.training_report.update(dict(
+            training_trajectories=samples,
+            total_training_steps=self.total_training_steps
+        ))
 
     def update(self):
         raise NotImplementedError
@@ -43,7 +50,7 @@ class BaseAgent(object):
         raise NotImplementedError
 
     def report(self):
-        raise NotImplementedError
+        return self.training_report
 
     def render_trajectory(
             self,
@@ -87,7 +94,6 @@ class BaseAgent(object):
         while True:
             observations.append(observation)
             action = policy.generate_action(observation)
-            logger.debug("Taking action.")
             actions.append(action)
             observation, reward, done, _ = \
                 environment.step(action)

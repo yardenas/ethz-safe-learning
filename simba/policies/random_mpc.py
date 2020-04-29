@@ -11,9 +11,7 @@ class RandomMpc(PolicyBase):
         self.action_space_sample = action_space.sample
 
     def generate_action(self, state):
-        logger.debug("Taking action.")
         return self.action_space_sample()
 
     def build(self):
-        logger.debug("Building policy.")
         pass

@@ -23,6 +23,6 @@ setup(
         'pyyaml~=5.3.1',
         'tensorboardx==1.8',
         'scipy~=1.4.1',
-        'moviepy==1.0.0'
+        'moviepy>=1.0.0'
     ]
 )

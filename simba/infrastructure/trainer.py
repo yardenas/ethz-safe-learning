@@ -11,6 +11,8 @@ class RLTrainer(object):
                  log_frequency,
                  video_log_frequency,
                  max_video_length,
+                 eval_interaction_steps,
+                 eval_episode_length,
                  training_logger_params):
         self.agent = agent
         self.environment = environemnt
@@ -18,6 +20,8 @@ class RLTrainer(object):
         self.log_frequency = log_frequency
         self.max_video_length = max_video_length
         self.video_log_frequency = video_log_frequency
+        self.eval_interaction_steps = eval_interaction_steps
+        self.eval_episode_length = eval_episode_length
 
     def train(self):
         self.agent.build_graph()
@@ -45,6 +49,23 @@ class RLTrainer(object):
         """
         Takes a report from the agent and logs it.
         """
+        evaluation_trajectories, _ = self.agent.sample_trajectories(
+            self.environment,
+            self.agent.policy,
+            self.eval_interaction_steps,
+            self.eval_episode_length
+        )
+        eval_return_values = np.array([trajectory['reward'].sum() for trajectory in evaluation_trajectories])
+        report.update(dict(
+            eval_rl_objective=eval_return_values.mean(),
+            sum_rewards_stddev=eval_return_values.std()
+        ))
+        train_return_values = np.array([trajectory['reward'].sum()
+                                        for trajectory in report.pop('training_trajectories')])
+        report.update(dict(
+            training_rl_objective=train_return_values.mean(),
+            sum_rewards_stddev=train_return_values.std()
+        ))
         losses = report.pop('losses')
         for i, loss in enumerate(losses):
             self.training_logger.log_scalars(

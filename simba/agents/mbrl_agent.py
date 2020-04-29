@@ -15,7 +15,6 @@ class MbrlAgent(BaseAgent):
                  warmup_timesteps,
                  train_batch_size,
                  train_interaction_steps,
-                 eval_interaction_steps,
                  episode_length,
                  replay_buffer_size,
                  **kwargs
@@ -27,7 +26,6 @@ class MbrlAgent(BaseAgent):
         self.actions_space_dim = action_space_dim
         self.train_batch_size = train_batch_size
         self.train_interaction_steps = train_interaction_steps
-        self.eval_batch_size = eval_interaction_steps
         self.episode_length = episode_length
         self.warmup_policy = self._make_policy('random_mpc', kwargs['policy_params'])
         self.warmup_timesteps = warmup_timesteps
@@ -36,7 +34,6 @@ class MbrlAgent(BaseAgent):
             "Did not specify a policy or a model."
         self.model = self._make_model(kwargs.pop('model'), kwargs.pop('model_params'))
         self.policy = self._make_policy(kwargs.pop('policy'), kwargs.pop('policy_params'))
-        self.training_report = dict()
 
     def set_random_seeds(self, seed):
         if seed is not None:
@@ -58,9 +55,6 @@ class MbrlAgent(BaseAgent):
         loesses = self.model.fit(observations_with_actions, next_observations)
         self.training_report['losses'] = loesses
 
-    def report(self):
-        return self.training_report
-
     def _interact(self, environment):
         if not self.warm:
             samples, timesteps_this_batch = self.sample_trajectories(
@@ -71,14 +65,13 @@ class MbrlAgent(BaseAgent):
             )
             self.total_warmup_timesteps_so_far += timesteps_this_batch
         else:
-            samples, _ = self.sample_trajectories(
+            samples, timesteps_this_batch = self.sample_trajectories(
                 environment,
                 self.policy,
                 self.train_interaction_steps,
                 self.episode_length
             )
-        assert samples is not None, "Didn't sample anything."
-        return samples
+        return samples, timesteps_this_batch
 
     def _build(self):
         self.model.build()

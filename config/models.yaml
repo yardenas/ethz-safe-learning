@@ -1,10 +1,10 @@
 models:
   mlp_ensemble:
     ensemble_size: 5
-    n_epochs: 250
+    n_epochs: 100
     batch_size: 64
     validation_split: 0.1
-    learning_rate: 0.0001
+    learning_rate: 0.001
     mlp_params:
       n_layers: 3
       units: 64
