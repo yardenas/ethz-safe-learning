@@ -28,7 +28,7 @@ class TransitionModel(BaseModel):
     def fit(self, inputs, targets):
         self.inputs_mean = tf.convert_to_tensor(inputs.mean(axis=0))
         self.inputs_stddev = tf.convert_to_tensor(inputs.std(axis=0))
-        observations = inputs[:, self.observation_space_dim:]
+        observations = inputs[:, :self.observation_space_dim]
         next_observations = targets
         return self.model.fit(
             (inputs - self.inputs_mean.numpy()) / (self.inputs_stddev.numpy() + 1e-8),
@@ -42,8 +42,8 @@ class TransitionModel(BaseModel):
 
     def simulate_trajectories(self, current_state, action_sequences):
         return self.propagate(
-            current_state.astype(np.float32),
-            action_sequences.astype(np.float32)
+            tf.convert_to_tensor(current_state, dtype=tf.float32),
+            tf.convert_to_tensor(action_sequences, dtype=tf.float32)
         )
 
     @tf.function
