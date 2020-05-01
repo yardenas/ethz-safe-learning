@@ -115,6 +115,7 @@ class MlpEnsemble(tf.Module):
 
     def fit(self, inputs, targets):
         assert inputs.shape[0] == targets.shape[0], "Inputs batch size ({}) "
+        assert np.isfinite(inputs).all() and np.isfinite(targets).all(), "Training values are not finite."
         "doesn't match targets batch size ({})".format(inputs.shape[0], targets.shape[0])
         losses = np.empty((self.n_epochs, self.ensemble_size))
         n_batches = int(np.ceil(inputs.shape[0] / self.batch_size))
