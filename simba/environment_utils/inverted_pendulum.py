@@ -8,15 +8,8 @@ class MbrlInvertedPendulumEnv(InvertedPendulumEnv, MbrlEnv):
         super().__init__()
 
     # Copy-pasted from the InvertedPendulumEnv 'step' function.
-    def get_rewards(self, obs, acs):
+    def get_reward(self, obs, acs):
         assert obs.ndim == 2 and acs.ndim == 2, \
-            "Expected inputs with shape (batch_size, dim), got shapes {} and {}" \
-                .format(obs.shape, acs.shape)
-        return np.ones(shape=(obs.shape[0],))
-
-    def is_done(self, obs, acs):
-        assert obs.ndim == 2 and acs.ndim == 2, \
-            "Expected inputs with shape (batch_size, dim), got shapes {} and {}" \
-                .format(obs.shape, acs.shape)
+            "Expected inputs with shape (batch_size, dim), got shapes {} and {}" .format(obs.shape, acs.shape)
         notdone = np.logical_and(np.isfinite(obs).all(axis=1), (np.abs(obs[:, 1]) <= .2))
-        return np.logical_not(notdone)
+        return np.ones(shape=(obs.shape[0],)), np.logical_not(notdone)

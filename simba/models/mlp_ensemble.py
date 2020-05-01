@@ -2,6 +2,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+from simba.infrastructure.logging_utils import logger
+
 
 class BaseLayer(tf.keras.layers.Layer):
     def __init__(self,
@@ -54,8 +56,9 @@ class GaussianDistMlp(tf.keras.Model):
 
 @tf.function
 def negative_log_likelihood(y_true, mu, var):
-    return 0.5 * tf.reduce_mean(tf.math.log(2.0 * np.pi * var)) + \
-           0.5 * tf.reduce_mean(tf.math.divide(tf.square(mu - y_true), var))
+    # return 0.5 * tf.reduce_mean(tf.math.log(2.0 * np.pi * var)) + \
+    #        0.5 * tf.reduce_mean(tf.math.divide(tf.square(mu - y_true), var))
+    return 0.5 * tf.reduce_sum(tf.reduce_mean(tf.square(mu - y_true), axis=0))
 
 
 class MlpEnsemble(tf.Module):
@@ -87,14 +90,14 @@ class MlpEnsemble(tf.Module):
     @tf.function
     def forward(self, inputs):
         inputs_per_mlp = tf.split(inputs, self.ensemble_size, axis=0)
-        ensemble_mus = []
-        ensemble_vars = []
-        for mlp_inputs, mlp in zip(inputs_per_mlp, self.ensemble):
+        ensemble_mus = tf.TensorArray(tf.float32, size=self.ensemble_size)
+        ensemble_vars = tf.TensorArray(tf.float32, size=self.ensemble_size)
+        for i, (mlp_inputs, mlp) in enumerate(zip(inputs_per_mlp, self.ensemble)):
             mu, var = mlp(mlp_inputs, training=False)
-            ensemble_mus.append(mu)
-            ensemble_vars.append(var)
-        cat_mus = tf.concat(ensemble_mus, axis=0)
-        cat_vars = tf.concat(ensemble_vars, axis=0)
+            ensemble_mus = ensemble_mus.write(i, mu)
+            ensemble_vars = ensemble_vars.write(i, var)
+        cat_mus = ensemble_mus.concat()
+        cat_vars = ensemble_vars.concat()
         return cat_mus, cat_vars
 
     @tf.function
@@ -122,10 +125,11 @@ class MlpEnsemble(tf.Module):
             x_batches = np.array_split(inputs[shuffles_per_mlp], n_batches, axis=1)
             y_batches = np.array_split(targets[shuffles_per_mlp], n_batches, axis=1)
             for x_batch, y_batch in zip(x_batches, y_batches):
-                loss_per_mlp = self.training_step(x_batch, y_batch)
+                loss_per_mlp = self.training_step(tf.convert_to_tensor(x_batch),
+                                                  tf.convert_to_tensor(y_batch))
                 avg_loss += np.array(loss_per_mlp) / n_batches
             if epoch % 20 == 0:
-                print('Epoch {} | Losses {}'.format(epoch, avg_loss))
+                logger.debug('Epoch {} | Losses {}'.format(epoch, avg_loss))
             losses[epoch] = avg_loss
         return losses.mean(axis=1)
 
@@ -134,4 +138,4 @@ class MlpEnsemble(tf.Module):
         mu, var = self.forward(inputs)
         distribution = tfp.distributions.Normal(loc=mu, scale=tf.sqrt(var))
         # distribution.mean(), distribution.stddev(),
-        return distribution.sample()
+        return distribution.mean(), distribution.stddev(), distribution.sample()

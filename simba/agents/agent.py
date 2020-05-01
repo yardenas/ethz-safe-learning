@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import simba.infrastructure.replay_buffer as rb
 from simba.infrastructure.logging_utils import logger
 
@@ -49,7 +50,10 @@ class BaseAgent(object):
     def _load(self):
         raise NotImplementedError
 
-    def report(self):
+    def report(self,
+               environment,
+               eval_interaction_steps,
+               eval_episode_length):
         return self.training_report
 
     def render_trajectory(
@@ -73,12 +77,15 @@ class BaseAgent(object):
             max_trajectory_length):
         timesteps_this_batch = 0
         trajectories = []
+        pbar = tqdm(total=batch_size)
         while timesteps_this_batch < batch_size:
             trajectories.append(self.sample_trajectory(
                 environment,
                 policy,
                 max_trajectory_length))
             timesteps_this_batch += rb.path_length(trajectories[-1])
+            pbar.update(timesteps_this_batch)
+        pbar.close()
         return trajectories, timesteps_this_batch
 
     def sample_trajectory(

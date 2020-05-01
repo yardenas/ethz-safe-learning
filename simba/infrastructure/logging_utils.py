@@ -44,14 +44,14 @@ class TrainingLogger:
         assert len(video_frames.shape) == 5, "Need [N, T, C, H, W] input tensor for video logging!"
         self._summ_writer.add_video('{}'.format(name), video_frames, step, fps=self.fps)
 
-    def log_figures(self, figure, name, step, phase):
+    def log_figures(self, figure, name, step):
         """figure: matplotlib.pyplot figure handle"""
         assert figure.shape[0] > 0, "Figure logging requires input shape [batch x figures]!"
-        self._summ_writer.add_figure('{}_{}'.format(name, phase), figure, step)
+        self._summ_writer.add_figure('{}'.format(name), figure, step)
 
-    def log_figure(self, figure, name, step, phase):
+    def log_figure(self, figure, name, step):
         """figure: matplotlib.pyplot figure handle"""
-        self._summ_writer.add_figure('{}_{}'.format(name, phase), figure, step)
+        self._summ_writer.add_figure('{}'.format(name), figure, step)
 
     def log_graph(self, graph, step, phase):
         """figure: matplotlib.pyplot figure handle"""

@@ -5,6 +5,6 @@ agents:
     train_batch_size: 1000000
     train_interaction_steps: 200
     episode_length: 1000
-    warmup_timesteps: 1000
+    warmup_timesteps: 20000
     policy: cem_mpc
     model: mlp_ensemble

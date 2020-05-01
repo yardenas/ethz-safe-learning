@@ -32,7 +32,11 @@ class RLTrainer(object):
             self.agent.interact(self.environment)
             self.agent.update()
             if self.log_frequency > 0 and iteration % self.log_frequency == 0:
-                self.log(self.agent.report(), iteration)
+                self.log(self.agent.report(
+                    self.environment,
+                    self.eval_interaction_steps,
+                    self.eval_episode_length
+                ), iteration)
             if self.log_frequency > 0 and iteration % self.video_log_frequency == 0:
                 self.log_video(self.agent.render_trajectory(
                     environment=self.environment,
@@ -49,17 +53,6 @@ class RLTrainer(object):
         """
         Takes a report from the agent and logs it.
         """
-        evaluation_trajectories, _ = self.agent.sample_trajectories(
-            self.environment,
-            self.agent.policy,
-            self.eval_interaction_steps,
-            self.eval_episode_length
-        )
-        eval_return_values = np.array([trajectory['reward'].sum() for trajectory in evaluation_trajectories])
-        report.update(dict(
-            eval_rl_objective=eval_return_values.mean(),
-            sum_rewards_stddev=eval_return_values.std()
-        ))
         train_return_values = np.array([trajectory['reward'].sum()
                                         for trajectory in report.pop('training_trajectories')])
         report.update(dict(
@@ -74,6 +67,8 @@ class RLTrainer(object):
                 step=i,
                 phase=epoch
             )
+        self.training_logger.log_figure(report.pop('predicted_states_vs_ground_truth'),
+                                        'predicted_vs_ground_truth', epoch)
         for key, value in report.items():
             self.training_logger.log_scalar(value, key, epoch)
         self.training_logger.flush()
