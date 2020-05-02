@@ -8,3 +8,4 @@ agents:
     warmup_timesteps: 20000
     policy: cem_mpc
     model: mlp_ensemble
+    scale_features: False

@@ -17,10 +17,8 @@ def make_agent(config, environment):
     if agent is agents.MbrlAgent:
         assert len(environment.action_space.shape) == 1 and \
                len(environment.observation_space.shape) == 1, "No support for non-flat action/observation spaces."
-        policy_params['environment'] = environment
         kwargs = {**agent_params, **base_agent_params, 'policy_params': policy_params,
                   'model_params': model_params}
         return agents.MbrlAgent(seed=config['options']['seed'],
-                                observation_space_dim=environment.observation_space.shape[0],
-                                action_space_dim=environment.action_space.shape[0],
+                                environment=environment,
                                 **kwargs)

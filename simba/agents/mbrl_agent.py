@@ -11,8 +11,7 @@ from simba.models.transition_model import TransitionModel
 class MbrlAgent(BaseAgent):
     def __init__(self,
                  seed,
-                 observation_space_dim,
-                 action_space_dim,
+                 environment,
                  warmup_timesteps,
                  train_batch_size,
                  train_interaction_steps,
@@ -23,18 +22,19 @@ class MbrlAgent(BaseAgent):
         super().__init__(
             seed,
             replay_buffer_size)
-        self.observation_space_dim = observation_space_dim
-        self.actions_space_dim = action_space_dim
+        self.observation_space_dim = environment.observation_space.shape[0]
+        self.actions_space_dim = environment.action_space.shape[0]
         self.train_batch_size = train_batch_size
         self.train_interaction_steps = train_interaction_steps
         self.episode_length = episode_length
-        self.warmup_policy = self._make_policy('random_mpc', kwargs['policy_params'])
+        self.warmup_policy = self._make_policy('random_mpc', kwargs['policy_params'], environment)
         self.warmup_timesteps = warmup_timesteps
         self.total_warmup_timesteps_so_far = 0
         assert all(key in kwargs.keys() for key in ('policy', 'policy_params', 'model', 'model_params')), \
             "Did not specify a policy or a model."
-        self.model = self._make_model(kwargs.pop('model'), kwargs.pop('model_params'))
-        self.policy = self._make_policy(kwargs.pop('policy'), kwargs.pop('policy_params'))
+        kwargs['model_params']['scale_features'] = kwargs['scale_features']
+        self.model = self._make_model(kwargs.pop('model'), kwargs.pop('model_params'), environment)
+        self.policy = self._make_policy(kwargs.pop('policy'), kwargs.pop('policy_params'), environment)
 
     def set_random_seeds(self, seed):
         if seed is not None:
@@ -107,19 +107,20 @@ class MbrlAgent(BaseAgent):
         ))
         return self.training_report
 
-    def _make_policy(self, policy, policy_params):
+    def _make_policy(self, policy, policy_params, environment):
         eval_policy = eval(standardize_name(policy))
+        policy_params['environment'] = environment
         if eval_policy == RandomMpc:
             return RandomMpc(policy_params['environment'].action_space)
         if policy_params is None:
             return eval((standardize_name(policy)))()
         return eval((standardize_name(policy)))(model=self.model, **policy_params)
 
-    def _make_model(self, model, model_params):
+    def _make_model(self, model, model_params, environment):
         return TransitionModel(
             model=model,
-            observation_space_dim=self.observation_space_dim,
-            action_space_dim=self.actions_space_dim,
+            observation_space=environment.observation_space,
+            action_space=environment.action_space,
             **model_params)
 
 
@@ -132,10 +133,9 @@ def make_prediction_error_figure(predicted_states, ground_truth_states):
     for dim in range(observation_dim):
         ax = fig.add_subplot(rows, cols, dim + 1)
         ax.errorbar(t, predicted_states[..., dim].mean(axis=0),
-                    c='bisque', ls='None', marker='.', ms=8,
-                    label='predicted distributions', alpha=0.8)
-        ax.scatter(t.repeat(predicted_states.shape[0]), predicted_states[..., dim].ravel(),
-                   c='bisque', marker='.', alpha=0.1)
+                    yerr=predicted_states[..., dim].std(axis=0),
+                    c='bisque', ls='None', marker='.', ms=3,
+                    label='predicted distributions', alpha=0.7)
         ax.plot(ground_truth_states[..., dim], 'skyblue',
                 label='ground truth')
         ax.set_xticklabels([])
