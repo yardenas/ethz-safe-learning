@@ -8,7 +8,7 @@ options:
     training_logger_params:
       fps: 15
   seed: 1
-  training_iterations: 5
+  train_iterations: 5
   agent: mbrl_agent
   environment: MbrlInvertedPendulum-v2
 
