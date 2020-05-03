@@ -34,7 +34,7 @@ class TransitionModel(BaseModel):
         observations = inputs[:, :self.observation_space_dim]
         next_observations = targets
         return self.model.fit(
-            self.scale_inputs(tf.constant(inputs.astype(np.float32))).numpy(),
+            self.scale_inputs(tf.convert_to_tensor(inputs.astype(np.float32))).numpy(),
             (next_observations - observations).astype(np.float32))
 
     def _fit_statistics(self, inputs):

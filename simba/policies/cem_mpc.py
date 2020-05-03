@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow.compat.v1 as tf
 from scipy.stats import truncnorm
 from gym import spaces as spaces
 from simba.policies.policy import PolicyBase
@@ -19,8 +18,7 @@ class CemMpc(PolicyBase):
                  particles):
         super().__init__()
         self.model = model
-        self.reward = environment.get_rewards
-        self.is_done = environment.is_done
+        self.reward = environment.get_reward
         self.action_space = environment.action_space
         assert isinstance(self.action_space, spaces.Box), "Expecting only box as action space."
         self.horizon = horizon
@@ -43,10 +41,10 @@ class CemMpc(PolicyBase):
             action_sequences_batch = np.tile(action_sequences, (self.particles, 1, 1))
             trajectories = self.model.simulate_trajectories(
                 np.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch)
-            rewards_along_trajectories = self.compute_rewards_along_trajectories(trajectories, action_sequences_batch)
-            scores = self.objective(rewards_along_trajectories)
-            trajectories_ranking = np.argsort(scores)
-            elite = action_sequences[trajectories_ranking[-self.elite:], ...]
+            assert np.isfinite(trajectories).all(), "Got a non-finite trajectory."
+            cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batch)
+            scores = self.objective(cumulative_rewards)
+            elite = action_sequences[np.argsort(scores)[-self.elite:], ...]
             elite_mu, elite_sigma = elite.mean(axis=0), elite.std(axis=0)
             mu = self.smoothing * mu + (1.0 - self.smoothing) * elite_mu
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * elite_sigma
@@ -54,16 +52,17 @@ class CemMpc(PolicyBase):
                 break
         return elite[0, 0, ...]
 
-    def compute_rewards_along_trajectories(self, trajectories, action_sequences):
-        rewards = np.zeros((trajectories.shape[0], trajectories.shape[1]))
+    def compute_cumulative_rewards(self, trajectories, action_sequences):
+        cumulative_rewards = np.zeros((trajectories.shape[0],))
         done_trajectories = np.zeros((trajectories.shape[0]), dtype=bool)
         for t in range(self.horizon):
             s_t = trajectories[:, t, ...]
             a_t = action_sequences[:, t, ...]
+            reward, dones = self.reward(s_t, a_t)
             done_trajectories = np.logical_or(
-                self.is_done(s_t, a_t), done_trajectories)
-            rewards[:, t, ...] = self.reward(s_t, a_t) * (1 - done_trajectories)
-        return rewards
+                dones, done_trajectories)
+            cumulative_rewards += reward * (1 - done_trajectories)
+        return cumulative_rewards
 
     def build(self):
         logger.debug("Building policy.")
@@ -82,9 +81,9 @@ class CemMpc(PolicyBase):
             lower_bound = -100
             upper_bound = 100
             mean = 0.0
-            stddev = 1.0
+            stddev = 200
         return lower_bound, upper_bound, mean, stddev
 
-    def pets_objective(self, rewards_along_trajectories):
-        rewards_per_sample = rewards_along_trajectories.reshape((self.n_samples, self.particles, self.horizon))
-        return np.mean(rewards_per_sample.sum(axis=2), axis=1)
+    def pets_objective(self, cumulative_rewards):
+        rewards_per_sample = cumulative_rewards.reshape((self.particles, self.n_samples))
+        return np.mean(rewards_per_sample, axis=0)

@@ -90,14 +90,14 @@ class MlpEnsemble(tf.Module):
     @tf.function
     def forward(self, inputs):
         inputs_per_mlp = tf.split(inputs, self.ensemble_size, axis=0)
-        ensemble_mus = tf.TensorArray(tf.float32, size=self.ensemble_size)
-        ensemble_vars = tf.TensorArray(tf.float32, size=self.ensemble_size)
-        for i, (mlp_inputs, mlp) in enumerate(zip(inputs_per_mlp, self.ensemble)):
+        ensemble_mus = []
+        ensemble_vars = []
+        for mlp_inputs, mlp in zip(inputs_per_mlp, self.ensemble):
             mu, var = mlp(mlp_inputs, training=False)
-            ensemble_mus = ensemble_mus.write(i, mu)
-            ensemble_vars = ensemble_vars.write(i, var)
-        cat_mus = ensemble_mus.concat()
-        cat_vars = ensemble_vars.concat()
+            ensemble_mus.append(mu)
+            ensemble_vars.append(var)
+        cat_mus = tf.concat(ensemble_mus, axis=0)
+        cat_vars = tf.concat(ensemble_vars, axis=0)
         return cat_mus, cat_vars
 
     @tf.function

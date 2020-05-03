@@ -3,12 +3,12 @@ options:
     video_log_frequency: 10
     log_frequency: 1
     max_video_length: 40
-    eval_interaction_steps: 20
-    eval_episode_length: 20
+    eval_interaction_steps: 30
+    eval_episode_length: 30
     training_logger_params:
       fps: 15
-  seed: 123
+  seed: 1
   agent: mbrl_agent
-  environment: MbrlInvertedPendulum-v2
+  environment: cheetah-simba-v0
 
 
