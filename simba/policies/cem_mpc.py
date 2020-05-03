@@ -87,3 +87,9 @@ class CemMpc(PolicyBase):
     def pets_objective(self, cumulative_rewards):
         rewards_per_sample = cumulative_rewards.reshape((self.particles, self.n_samples))
         return np.mean(rewards_per_sample, axis=0)
+
+    def pets_with_exploration_bonus(self, cumulative_rewards):
+        rewards_per_sample_per_net = cumulative_rewards.reshape((5, -1, self.n_samples))
+        particle_mean = rewards_per_sample_per_net.mean(axis=1)
+        epistemic = particle_mean.std(axis=0)
+        return self.pets_objective(cumulative_rewards) + epistemic
