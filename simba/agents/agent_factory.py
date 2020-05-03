@@ -15,11 +15,10 @@ def make_agent(config, environment):
     assert model in config['models'], "Specified model does not exist."
     model_params = config['models'][model]
     if agent is agents.MbrlAgent:
-        policy_params['environment'] = environment
+        assert len(environment.action_space.shape) == 1 and \
+               len(environment.observation_space.shape) == 1, "No support for non-flat action/observation spaces."
         kwargs = {**agent_params, **base_agent_params, 'policy_params': policy_params,
                   'model_params': model_params}
         return agents.MbrlAgent(seed=config['options']['seed'],
-                                observation_space_dim=environment.observation_space.shape[0],
-                                action_space_dim=environment.action_space.shape[0],
+                                environment=environment,
                                 **kwargs)
-

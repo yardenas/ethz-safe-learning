@@ -1,18 +1,15 @@
 options:
   trainer_options:
-    video_log_frequency: 0
-    log_frequency: 0
+    video_log_frequency: 3
+    log_frequency: 1
+    max_video_length: 40
+    eval_interaction_steps: 20
+    eval_episode_length: 20
     training_logger_params:
       fps: 15
-      max_video_length: 40
-  seed: 123
+  seed: 1
+  training_iterations: 5
   agent: mbrl_agent
   environment: MbrlInvertedPendulum-v2
 
-models:
-  ensembled_anchored_nn:
-    anchored_nn:
-      learning_rate: 8
-      anchor: True
-      yarden: True
 

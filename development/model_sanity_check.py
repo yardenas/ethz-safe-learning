@@ -8,12 +8,13 @@
 # In this notebook I want to demonstrate that my tensorflow implementation of the ensemble neural network is
 # actually working and useful. In the spirit of times, I will try to learn the _hypothetical_ spreading of the COVID-19
 # disease in the _hypothetical_ island of Wakanda through the period of one year.
-from simba.models.ensembled_anchored_nn import AnchoredMlpEnsemble
-import tensorflow.compat.v1 as tf
+from simba.models.mlp_ensemble import MlpEnsemble
+import tensorflow as tf
 import numpy as np
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
-tf.set_random_seed(0)
+
+tf.random.set_seed(0)
 np.random.seed(0)
 
 
@@ -36,6 +37,7 @@ def generate_covid_19_infection_rate_data():
         dIdt = beta * S * I / population - gamma * I
         dRdt = gamma * I
         return dSdt, dIdt, dRdt
+
     y_0 = s_0, i_0, r_0
     ret = odeint(deriv, y_0, t, args=(population, beta, gamma))
     _, infected_people, _ = ret.transpose()
@@ -56,24 +58,21 @@ time_val = np.linspace(0, 365, 900)
 
 
 # Some hyperparameters
-def make_model(sess):
+def make_model():
     mlp_dict = dict(
-        learning_rate=0.0007,
         n_layers=5,
-        hidden_size=64,
+        units=64,
         activation=tf.nn.relu,
-        anchor=False,
-        init_std_bias=10.0,
-        init_std_weights=10.5,
-        data_noise=noise
+        dropout_rate=0.0
     )
-    ensemble = AnchoredMlpEnsemble(
-        sess=sess,
+    ensemble = MlpEnsemble(
         inputs_dim=1,
         outputs_dim=1,
         ensemble_size=5,
-        n_epochs=50,
+        n_epochs=250,
         batch_size=64,
+        validation_split=0.2,
+        learning_rate=0.0005,
         mlp_params=mlp_dict
     )
     ensemble.build()
@@ -87,31 +86,32 @@ x_test = np.reshape(x_test, (n_particles * time_val.shape[0]))
 data_mean = time_augmented.mean()
 data_std = time_augmented.std()
 x = np.squeeze((time_augmented - data_mean) / (data_std + 1e-8))
+x = x.astype(np.float32)
+infected_people_samples = infected_people_samples.astype(np.float32)
 x_test = (x_test - data_mean) / (data_std + 1e-8)
+x_test = x_test.astype(np.float32)
+model = make_model()
 import time as t
-t0 = t.time()
-with tf.Session() as sess:
-    model = make_model(sess)
-    sess.run(tf.global_variables_initializer())
-    model.fit(x[:, np.newaxis], infected_people_samples[:, np.newaxis])
-    t1 = t.time()
-    print("train time:", t1 - t0)
-    mus, sigmas, preds = np.squeeze(model.predict(x_test[:, np.newaxis]))
-    t2 = t.time()
-    print("pred first:", t2 - t1)
-    mus, sigmas, preds = np.squeeze(model.predict(x_test[:, np.newaxis]))
-    t3 = t.time()
-    print("pred sec:", t3 - t2)
-    mus, sigmas, preds = np.squeeze(model.predict(x_test[:, np.newaxis]))
-    t4 = t.time()
-    print("pred thes:", t4 - t3)
 
+t0 = t.time()
+model.fit(x[:, np.newaxis], infected_people_samples[:, np.newaxis])
+t1 = t.time()
+print("train time:", t1 - t0)
+mus, sigmas, preds = np.squeeze(model((x_test[:, np.newaxis])))
+t2 = t.time()
+print("pred first:", t2 - t1)
+model(x_test[:, np.newaxis])
+t3 = t.time()
+print("pred sec:", t3 - t2)
+model(x_test[:, np.newaxis])
+t4 = t.time()
+print("pred tihid:", t4 - t3)
 
 # The total uncertainty (epistemic and aleatoric) using monte-carlo estimation
 # using data sampled from _ensemble_size_ and _n\_particles_
 # For more details on decomposition of uncertainties: http://proceedings.mlr.press/v80/depeweg18a/depeweg18a.pdf 
-preds = np.reshape(preds, 
-                  (model.ensemble_size, n_particles, time_val.shape[0]))
+preds = np.reshape(preds,
+                   (model.ensemble_size, -1, time_val.shape[0]))
 aleatoric_monte_carlo_uncertainty = np.mean(np.std(preds, axis=1) ** 2, axis=0)
 epistemic_monte_carlo_uncertainty = np.std(np.mean(preds, axis=1), axis=0) ** 2
 total_monte_carlo_uncertainty = aleatoric_monte_carlo_uncertainty + epistemic_monte_carlo_uncertainty
@@ -121,8 +121,8 @@ ax = fig.subplots()
 ax.set_ylim([-100, 12.5e3])
 ax.scatter(time_augmented, infected_people_samples, color='#FF9671', alpha=0.09,
            s=20, label='Infected today people a day')
-ax.plot(time_val, np.mean(preds, axis=(0, 1)), '-', color='#845EC2', linewidth=1.5, 
-       label='Mean over all particles and MLPs', alpha=0.8)
+ax.plot(time_val, np.mean(preds, axis=(0, 1)), '-', color='#845EC2', linewidth=1.5,
+        label='Mean over all particles and MLPs', alpha=0.8)
 ax.fill_between(time_val, np.mean(preds, axis=(0, 1)) - np.sqrt(total_monte_carlo_uncertainty),
                 np.mean(preds, axis=(0, 1)) + np.sqrt(total_monte_carlo_uncertainty),
                 color='#FF6F91', alpha=0.5, label='Total monte-carlo standard deviation')
@@ -131,12 +131,12 @@ plt.xlabel("Days")
 plt.ylabel("Infectious people")
 plt.show()
 
-mus = np.reshape(mus, 
-                  (model.ensemble_size, n_particles, time_val.shape[0]))
-sigmas = np.reshape(sigmas, 
-                  (model.ensemble_size, n_particles, time_val.shape[0]))
+mus = np.reshape(mus,
+                 (model.ensemble_size, -1, time_val.shape[0]))
+sigmas = np.reshape(sigmas,
+                    (model.ensemble_size, -1, time_val.shape[0]))
 aleatoric_explicit_uncertainty = np.mean(sigmas ** 2, axis=(0, 1))
-fig = plt.figure(figsize=(10, 10), dpi= 80, facecolor='w', edgecolor='k')
+fig = plt.figure(figsize=(10, 10), dpi=80, facecolor='w', edgecolor='k')
 ax1 = fig.add_subplot(211)
 ax1.plot(time_val, aleatoric_monte_carlo_uncertainty, label='Monte-carlo estimated aleatoric uncertainty')
 ax1.plot(time_val, aleatoric_explicit_uncertainty, label='Explicit aleatoric uncertainty')
@@ -146,4 +146,3 @@ ax2 = fig.add_subplot(212)
 ax2.plot(time_val, epistemic_monte_carlo_uncertainty, label='Monte-carlo epistemic uncertainty')
 ax2.legend(loc='upper right', fontsize='medium')
 plt.show()
-

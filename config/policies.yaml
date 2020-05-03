@@ -1,3 +1,9 @@
 policies:
   cem_mpc:
-    horizon: 3
+    horizon: 20
+    iterations: 5
+    objective: TODOYARDEN
+    smoothing: 0.1
+    n_samples: 500
+    n_elite: 50
+    particles: 10

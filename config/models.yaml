@@ -1,14 +1,12 @@
 models:
-  anchored_mlp_ensemble:
+  mlp_ensemble:
     ensemble_size: 5
-    n_epochs: 250
+    n_epochs: 70
     batch_size: 64
+    validation_split: 0.1
+    learning_rate: 0.001
     mlp_params:
-      learning_rate: 0.0007
-      n_layers: 5
-      hidden_size: 64
+      n_layers: 2
+      units: 64
       activation: tf.nn.relu
-      anchor: False
-      init_std_bias: 0.0
-      init_std_weights: 0.0
-      data_noise: 0.0
+      dropout_rate: 0.0
