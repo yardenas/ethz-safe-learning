@@ -34,7 +34,7 @@ def main():
     trainer = RLTrainer(agent=agent,
                         environemnt=env,
                         **trainer_options)
-    trainer.train()
+    trainer.train(trainer_options.pop('iterations'))
 
 
 if __name__ == '__main__':

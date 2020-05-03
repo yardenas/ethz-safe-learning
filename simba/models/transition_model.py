@@ -38,6 +38,7 @@ class TransitionModel(BaseModel):
             (next_observations - observations).astype(np.float32))
 
     def _fit_statistics(self, inputs):
+        pass
         if not self.scale_features:
             pass
         high = np.concatenate([self.observation_space.high, self.action_space.high])
@@ -74,8 +75,9 @@ class TransitionModel(BaseModel):
             trajectories = trajectories.write(t, s_t)
         return tf.transpose(trajectories.stack(), [1, 0, 2])
 
-    @tf.function
+    # @tf.function
     def scale_inputs(self, inputs):
+        return inputs
         if not self.scale_features:
             return inputs
         delta = self.inputs_max - self.inputs_min

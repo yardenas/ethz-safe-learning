@@ -66,7 +66,7 @@ class BaseAgent(object):
         for t in range(max_trajectory_length):
             images.append(environment.render(mode='rgb_array'))
             action = policy.generate_action(observation)
-            _, _, _, _ = environment.step(action)
+            observation, _, _, _ = environment.step(action)
         return images
 
     def sample_trajectories(
@@ -82,9 +82,9 @@ class BaseAgent(object):
             trajectories.append(self.sample_trajectory(
                 environment,
                 policy,
-                max_trajectory_length))
+                max_trajectory_length,
+                pbar))
             timesteps_this_batch += rb.path_length(trajectories[-1])
-            pbar.update(timesteps_this_batch)
         pbar.close()
         return trajectories, timesteps_this_batch
 
@@ -92,7 +92,8 @@ class BaseAgent(object):
             self,
             environment,
             policy,
-            max_trajectory_length):
+            max_trajectory_length,
+            pbar):
         observation = environment.reset()
         observations, actions, \
         rewards, next_observations, \
@@ -104,13 +105,13 @@ class BaseAgent(object):
             actions.append(action)
             observation, reward, done, _ = \
                 environment.step(action)
-            logger.debug("Taking action.")
             steps += 1
             next_observations.append(observation)
             rewards.append(reward)
             rollout_done = int((steps == max_trajectory_length)
                                or done)
             terminals.append(rollout_done)
+            pbar.update(1)
             if rollout_done:
                 break
         # A more safe assert would be to check all of the actions, but compute time is not cheap.

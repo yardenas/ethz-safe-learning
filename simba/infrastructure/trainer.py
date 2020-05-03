@@ -23,11 +23,9 @@ class RLTrainer(object):
         self.eval_interaction_steps = eval_interaction_steps
         self.eval_episode_length = eval_episode_length
 
-    def train(self):
+    def train(self, iterations):
         self.agent.build_graph()
-        converged = False
-        iteration = 0
-        while not converged:
+        for iteration in range(iterations):
             logger.info("Training iteration {}.".format(iteration))
             self.agent.interact(self.environment)
             self.agent.update()
@@ -43,7 +41,6 @@ class RLTrainer(object):
                     policy=self.agent.policy,
                     max_trajectory_length=self.max_video_length
                 ), iteration)
-            iteration += 1
 
     def play_trained_model(self):
         # self.agent.load_graph()

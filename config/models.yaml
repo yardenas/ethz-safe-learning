@@ -7,6 +7,6 @@ models:
     learning_rate: 0.001
     mlp_params:
       n_layers: 2
-      units: 128
+      units: 64
       activation: tf.nn.relu
       dropout_rate: 0.0

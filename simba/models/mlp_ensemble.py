@@ -126,8 +126,8 @@ class MlpEnsemble(tf.Module):
             x_batches = np.array_split(inputs[shuffles_per_mlp], n_batches, axis=1)
             y_batches = np.array_split(targets[shuffles_per_mlp], n_batches, axis=1)
             for x_batch, y_batch in zip(x_batches, y_batches):
-                loss_per_mlp = self.training_step(tf.convert_to_tensor(x_batch),
-                                                  tf.convert_to_tensor(y_batch))
+                loss_per_mlp = self.training_step(tf.constant(x_batch),
+                                                  tf.constant(y_batch))
                 avg_loss += np.array(loss_per_mlp) / n_batches
             if epoch % 20 == 0:
                 logger.debug('Epoch {} | Losses {}'.format(epoch, avg_loss))
