@@ -58,7 +58,7 @@ class CemMpc(PolicyBase):
         for t in range(self.horizon):
             s_t = trajectories[:, t, ...]
             a_t = action_sequences[:, t, ...]
-            reward, dones, costs = self.reward(s_t, a_t)
+            reward, dones = self.reward(s_t, a_t)
             done_trajectories = np.logical_or(
                 dones, done_trajectories)
             cumulative_rewards += reward * (1 - done_trajectories)
