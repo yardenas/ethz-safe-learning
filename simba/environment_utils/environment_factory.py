@@ -3,5 +3,6 @@ import safety_gym
 
 
 def make_environment(config):
-    environment = config['options']['environment']
-    return gym.make(environment)
+    environment = gym.make(config['options']['environment'])
+    environment.seed(config['options']['seed'])
+    return environment
