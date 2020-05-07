@@ -63,10 +63,13 @@ class BaseAgent(object):
             max_trajectory_length):
         observation = environment.reset()
         images = []
-        for t in range(max_trajectory_length):
+        logger.info("Sampling render trajectory.")
+        for _ in tqdm(range(max_trajectory_length)):
             images.append(environment.render(mode='rgb_array'))
             action = policy.generate_action(observation)
-            observation, _, _, _ = environment.step(action)
+            observation, _, done, _ = environment.step(action)
+            if done:
+                break
         return images
 
     def sample_trajectories(

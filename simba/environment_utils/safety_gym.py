@@ -9,15 +9,19 @@ class MbrlSafetyGym(MbrlEnv):
             self.env.config,
             self.env.obs_space_dict)
 
-    def get_reward(self, obs, acs):
-        return self._scorer.reward(obs, acs)
+    def get_reward(self, obs, _, next_obs):
+        return self._scorer.reward(obs, next_obs)
+
+    def reset(self, **kwargs):
+        observation = self.env.reset(**kwargs)
+        self._scorer.reset(observation)
+        return observation
 
 
 class SafetyGymStateScorer(object):
     def __init__(self, config={}, obs_space_dict={}):
         for key, value in config.items():
             setattr(self, key, value)
-        self.last_dist_goal = 1e3
         self.last_dist_box = 1e3
         self.last_box_goal = 1e3
         self.last_box_observed = False
@@ -30,24 +34,24 @@ class SafetyGymStateScorer(object):
 
     def reset(self, observation):
         if self.task == 'goal':
-            self.last_dist_goal = self.goal_distance_metric(observation)
+            pass
         elif self.task == 'push':
             self.last_box_goal, self.last_dist_box = self.push_distance_metric(observation)
 
-    def reward(self, observations, actions):
+    def reward(self, observations, next_observations):
         """ Calculate the dense component of reward.  Call exactly once per step """
         observations_exp = np.expand_dims(observations, axis=0) if observations.ndim == 1 else \
             observations
-        actions_exp = np.expand_dims(actions, axis=0) if actions.ndim == 1 else \
-            actions
+        next_observations_exp = np.expand_dims(next_observations, axis=0) if next_observations.ndim == 1 else \
+            next_observations
         reward = np.zeros((observations.shape[0],))
         dones = np.zeros_like(reward, dtype=bool)
         # Distance from robot to goal
         if self.task == 'goal':
             dist_goal = self.goal_distance_metric(observations_exp)
+            next_dist_goal = self.goal_distance_metric(next_observations_exp)
             dones = np.less_equal(dist_goal, self.goal_size)
-            reward += (self.last_dist_goal - dist_goal) * self.reward_distance + dones * self.reward_goal
-            self.last_dist_goal = dist_goal
+            reward += (dist_goal - next_dist_goal) * self.reward_distance + dones * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
             box_observed = np.any(
@@ -72,7 +76,7 @@ class SafetyGymStateScorer(object):
             np.clip(reward, -self.reward_clip, self.reward_clip, out=reward)
         return reward, dones
 
-    def cost(self, observations, actions):
+    def cost(self, observations):
         """ Calculate the current costs and return a dict
          assumes SG6 tasks"""
         observations_exp = np.expand_dims(observations, axis=0) if observations.ndim == 1 else \
@@ -110,14 +114,9 @@ class SafetyGymStateScorer(object):
     def goal_distance_metric(self, observations):
         observations_exp = np.expand_dims(observations, axis=0) if observations.ndim == 1 else \
             observations
-        if self.lidar_max_dist is None:
-            return np.clip(
-                -np.log(np.clip(observations_exp[:, self.sensor_offset_table['goal_dist']], 1e-5, np.inf)),
-                0.0, np.inf).squeeze()
-        else:
-            return np.clip(
-                self.lidar_max_dist - observations_exp[:, self.sensor_offset_table['goal_dist']] * self.lidar_max_dist,
-                0.0, self.lidar_max_dist).squeeze()
+        return np.clip(
+            -np.log(np.clip(observations_exp[:, self.sensor_offset_table['goal_dist']], 1e-5, np.inf)),
+            0.0, np.inf).squeeze()
 
     def push_distance_metric(self, observations):
         observations_exp = np.expand_dims(observations, axis=0) if observations.ndim == 1 else \
@@ -126,7 +125,6 @@ class SafetyGymStateScorer(object):
         dist_box = self.closest_distance(box_lidar, 0.01)
         dist_goal = -np.log(observations_exp[:, self.sensor_offset_table['goal_dist']])
         box_direction = self.average_direction(box_lidar)
-        box_true_direction = observations_exp[:, self.sensor_offset_table['box_compass']]
         goal_position = dist_goal * observations_exp[:, self.sensor_offset_table['goal_compass']]
         box_position = dist_box * box_direction
         dist_box_goal = np.linalg.norm(goal_position - box_position, axis=1)

@@ -33,7 +33,8 @@ class CemMpc(PolicyBase):
         lb, ub, mu, sigma = self.sampling_params
         elite = mu
         for i in range(self.iterations):
-            # Following instructions from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.truncnorm.html
+            # Following instructions from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.truncnorm
+            # .html
             action_sequences = truncnorm.rvs(
                 a=(lb - mu) / sigma, b=(ub - mu) / sigma, loc=mu, scale=sigma,
                 size=(self.n_samples, self.horizon, self.action_space.shape[0])
@@ -57,10 +58,11 @@ class CemMpc(PolicyBase):
     def compute_cumulative_rewards(self, trajectories, action_sequences):
         cumulative_rewards = np.zeros((trajectories.shape[0],))
         done_trajectories = np.zeros((trajectories.shape[0]), dtype=bool)
-        for t in range(self.horizon):
+        for t in range(self.horizon - 1):
             s_t = trajectories[:, t, ...]
+            s_t_1 = trajectories[:, t + 1, ...]
             a_t = action_sequences[:, t, ...]
-            reward, dones = self.reward(s_t, a_t)
+            reward, dones = self.reward(s_t, a_t, s_t_1)
             done_trajectories = np.logical_or(
                 dones, done_trajectories)
             cumulative_rewards += reward * (1 - done_trajectories)
