@@ -33,8 +33,9 @@ class CemMpc(PolicyBase):
         lb, ub, mu, sigma = self.sampling_params
         elite = mu
         for i in range(self.iterations):
+            # Following instructions from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.truncnorm.html
             action_sequences = truncnorm.rvs(
-                a=lb, b=ub, loc=mu, scale=sigma,
+                a=(lb - mu) / sigma, b=(ub - mu) / sigma, loc=mu, scale=sigma,
                 size=(self.n_samples, self.horizon, self.action_space.shape[0])
             )
             # Propagate the same action sequences for #particles to get better statistics estimates.
@@ -74,8 +75,8 @@ class CemMpc(PolicyBase):
         if self.action_space.is_bounded():
             mean = (self.action_space.high + self.action_space.low) / 2.0
             stddev = self.action_space.high - self.action_space.low
-            lower_bound = (self.action_space.low - mean) / stddev
-            upper_bound = (self.action_space.high - mean) / stddev
+            lower_bound = self.action_space.low
+            upper_bound = self.action_space.high
         else:
             # For large enough bounds, the truncated normal dist. converges to a standard normal dist.
             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.truncnorm.html#scipy.stats.truncnorm
