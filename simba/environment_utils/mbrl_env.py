@@ -1,10 +1,11 @@
+import gym
 
-class MbrlEnv(object):
-    def __init__(self):
-        raise NotImplementedError
+
+class MbrlEnv(gym.Wrapper):
+    def __init__(self, env_name):
+        environment = gym.make(env_name)
+        super(MbrlEnv, self).__init__(environment)
 
     def get_reward(self, obs, acs):
         raise NotImplementedError
 
-    # def is_done(self, obs, acs):
-    #     raise NotImplementedError

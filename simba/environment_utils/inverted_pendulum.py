@@ -1,11 +1,10 @@
 import numpy as np
-from gym.envs.mujoco.inverted_pendulum import InvertedPendulumEnv
 from simba.environment_utils.mbrl_env import MbrlEnv
 
 
-class MbrlInvertedPendulumEnv(InvertedPendulumEnv, MbrlEnv):
+class MbrlInvertedPendulum(MbrlEnv):
     def __init__(self):
-        super().__init__()
+        super().__init__('InvertedPendulum-v2')
 
     # Copy-pasted from the InvertedPendulumEnv 'step' function.
     def get_reward(self, obs, acs):

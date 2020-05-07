@@ -1,6 +1,6 @@
 policies:
   cem_mpc:
-    horizon: 20
+    horizon: 15
     iterations: 5
     objective: TODOYARDEN
     smoothing: 0.1

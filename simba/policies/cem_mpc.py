@@ -43,6 +43,7 @@ class CemMpc(PolicyBase):
                 np.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch)
             assert np.isfinite(trajectories).all(), "Got a non-finite trajectory."
             cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batch)
+            assert np.isfinite(cumulative_rewards.all()), "Got non-finite rewards."
             scores = self.objective(cumulative_rewards)
             elite = action_sequences[np.argsort(scores)[-self.elite:], ...]
             elite_mu, elite_sigma = elite.mean(axis=0), elite.std(axis=0)

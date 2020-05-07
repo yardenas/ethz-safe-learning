@@ -1,6 +1,6 @@
 import gym
 import safety_gym
-from simba.environment_utils import SafetyGymStateScorer
+from simba.environment_utils.safety_gym_scoring import SafetyGymStateScorer
 
 
 def main():
