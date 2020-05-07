@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-
 from simba.infrastructure.logging_utils import logger
 
 
@@ -37,18 +36,26 @@ class GaussianHead(tf.keras.layers.Layer):
 
 class GaussianDistMlp(tf.keras.Model):
     def __init__(self,
+                 inputs_dim,
                  outputs_dim,
                  n_layers,
                  units,
                  activation,
                  dropout_rate):
         super().__init__()
-        self.forward = tf.keras.Sequential([
-            BaseLayer(units, activation, dropout_rate) for _ in range(n_layers)
-        ])
+        self.forward = tf.keras.Sequential(
+            [tf.keras.layers.InputLayer(input_shape=(inputs_dim,))] +
+            [BaseLayer(units, activation, dropout_rate) for _ in range(n_layers)]
+        )
         self.head = GaussianHead(outputs_dim)
+        self.output_dim = outputs_dim
 
-    @tf.function
+    # Following https://stackoverflow.com/questions/58577713/tf-function-with-input-signature-errors-out-when-calling
+    # -a-sub-layer
+    @tf.function(
+        input_signature=[tf.TensorSpec(shape=None, dtype=tf.float32),
+                         tf.TensorSpec(shape=(), dtype=tf.bool)]
+    )
     def call(self, inputs, training=None):
         x = self.forward(inputs, training)
         return self.head(x, training)
@@ -80,20 +87,19 @@ class MlpEnsemble(tf.Module):
         self.validation_split = validation_split
         self.learning_rate = learning_rate
         self.mlp_params = mlp_params
-        self.ensemble = [GaussianDistMlp(outputs_dim=self.outputs_dim, **self.mlp_params)
+        self.ensemble = [GaussianDistMlp(inputs_dim=self.inputs_dim, outputs_dim=self.outputs_dim, **self.mlp_params)
                          for _ in range(self.ensemble_size)]
         self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
     def build(self):
         pass
 
-    @tf.function
     def forward(self, inputs):
         inputs_per_mlp = tf.split(inputs, self.ensemble_size, axis=0)
         ensemble_mus = []
         ensemble_vars = []
         for mlp_inputs, mlp in zip(inputs_per_mlp, self.ensemble):
-            mu, var = mlp(mlp_inputs, training=False)
+            mu, var = mlp(mlp_inputs, training=tf.constant(False))
             ensemble_mus.append(mu)
             ensemble_vars.append(var)
         cat_mus = tf.concat(ensemble_mus, axis=0)
@@ -105,7 +111,7 @@ class MlpEnsemble(tf.Module):
         losses = []
         for i, mlp in enumerate(self.ensemble):
             with tf.GradientTape() as tape:
-                mu, var = mlp(inputs[i, ...], training=True)
+                mu, var = mlp(inputs[i, ...], training=tf.constant(True))
                 loss = negative_log_likelihood(targets[i, ...], mu, var)
                 losses.append(loss)
                 grads = tape.gradient(loss, mlp.trainable_variables)
@@ -138,5 +144,4 @@ class MlpEnsemble(tf.Module):
     def __call__(self, inputs, *args, **kwargs):
         mu, var = self.forward(inputs)
         distribution = tfp.distributions.Normal(loc=mu, scale=tf.sqrt(var))
-        # distribution.mean(), distribution.stddev(),
         return distribution.mean(), distribution.stddev(), distribution.sample()

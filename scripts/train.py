@@ -27,14 +27,14 @@ def main():
     dump_string(pretty_print(params), experiment_log_dir + '/params.txt')
     env = make_environment(params)
     agent = make_agent(params, env)
-    trainer_options = params.pop('options').pop('trainer_options')
+    trainer_options = params['options'].pop('trainer_options')
     trainer_options['training_logger_params'].update({
         'log_dir': (experiment_log_dir + '/training_data')
     })
     trainer = RLTrainer(agent=agent,
                         environemnt=env,
                         **trainer_options)
-    trainer.train(trainer_options.pop('iterations'))
+    trainer.train(params['options'].pop('train_iterations'))
 
 
 if __name__ == '__main__':

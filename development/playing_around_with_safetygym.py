@@ -1,6 +1,5 @@
 import gym
 import safety_gym
-from simba.environment_utils import SafetyGymStateScorer
 
 
 def main():
@@ -9,7 +8,6 @@ def main():
     for environment in sg6:
         env = gym.make('Safexp-' + environment + '-v0')
         env.reset()
-        scorer = SafetyGymStateScorer(env.config)
         print("-------------------- " + environment + " --------------------\n",
               env.obs())
 
