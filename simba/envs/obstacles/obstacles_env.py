@@ -88,7 +88,7 @@ class Obstacles(gym.Env):
         score = -1*np.abs(curr_pos-end_pos)
         return score
 
-    def get_reward(self, observations, actions):
+    def get_reward(self, observations, actions, *args, **kwargs):
 
         """get reward/s of given (observations, actions) datapoint or datapoints
 

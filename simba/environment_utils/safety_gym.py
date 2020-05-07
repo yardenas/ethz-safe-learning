@@ -9,8 +9,8 @@ class MbrlSafetyGym(MbrlEnv):
             self.env.config,
             self.env.obs_space_dict)
 
-    def get_reward(self, obs, _, next_obs):
-        return self._scorer.reward(obs, next_obs)
+    def get_reward(self, obs, acs, *args, **kwargs):
+        return self._scorer.reward(obs, *args, **kwargs)
 
     def reset(self, **kwargs):
         observation = self.env.reset(**kwargs)

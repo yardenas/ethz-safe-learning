@@ -51,7 +51,7 @@ class Reacher7DOFEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         score = -1*np.abs(hand_pos-target_pos)
         return score
 
-    def get_reward(self, observations, actions):
+    def get_reward(self, observations, actions, *args, **kwargs):
 
         """get reward/s of given (observations, actions) datapoint or datapoints
 

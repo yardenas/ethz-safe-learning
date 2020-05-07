@@ -58,7 +58,8 @@ class CemMpc(PolicyBase):
     def compute_cumulative_rewards(self, trajectories, action_sequences):
         cumulative_rewards = np.zeros((trajectories.shape[0],))
         done_trajectories = np.zeros((trajectories.shape[0]), dtype=bool)
-        for t in range(self.horizon - 1):
+        horizon = trajectories.shape[1]
+        for t in range(horizon - 1):
             s_t = trajectories[:, t, ...]
             s_t_1 = trajectories[:, t + 1, ...]
             a_t = action_sequences[:, t, ...]

@@ -10,6 +10,6 @@ options:
   seed: 1
   train_iterations: 5
   agent: mbrl_agent
-  environment: MbrlInvertedPendulum
+  environment: reacher-simba-v0
 
 
