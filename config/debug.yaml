@@ -1,6 +1,6 @@
 options:
   trainer_options:
-    video_log_frequency: 5
+    video_log_frequency: 10
     log_frequency: 1
     max_video_length: 150
     eval_interaction_steps: 100
@@ -8,7 +8,7 @@ options:
     training_logger_params:
       fps: 28
   seed: 1
-  train_iterations: 30
+  train_iterations: 90
   agent: mbrl_agent
   environment: reacher-simba-v0
 

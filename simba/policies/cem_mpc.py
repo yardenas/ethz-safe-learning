@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from scipy.stats import truncnorm
 from gym import spaces as spaces
 from simba.policies.policy import PolicyBase
@@ -29,56 +30,63 @@ class CemMpc(PolicyBase):
         self.elite = n_elite
         self.particles = particles
 
+    def generate_action(self, state):
+        return self.do_generate_action(tf.constant(state, dtype=tf.float32)).numpy()
+
+    @tf.function
+    def do_generate_action(self, state):
+        _, _, mu, sigma = self.sampling_params
+        mu = tf.broadcast_to(mu, (self.horizon, mu.shape[0]))
+        sigma = tf.broadcast_to(sigma, (self.horizon, sigma.shape[0]))
+        for _ in tf.range(self.iterations):
+            action_sequences = tf.random.truncated_normal(
+                shape=(self.n_samples, self.horizon, self.action_space.shape[0]),
+                mean=mu,
+                stddev=sigma
+            )
+            action_sequences_batch = tf.tile(
+                action_sequences, (self.particles, 1, 1)
+            )
+            trajectories = self.model.unfold_sequences(
+                tf.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch
+            )
+            cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batch)
+            scores = self.objective(cumulative_rewards)
+            _, elite = tf.nn.top_k(scores, self.elite, sorted=False)
+            best_actions = tf.gather(action_sequences, elite)
+            mean, variance = tf.nn.moments(best_actions, axes=0)
+            stddev = tf.sqrt(variance + 1e-6)
+            mu = self.smoothing * mu + (1.0 - self.smoothing) * mean
+            sigma = self.smoothing * sigma + (1.0 - self.smoothing) * stddev
+            if tf.reduce_all(tf.less_equal(sigma, 1e-2)):
+                break
+        return mu[0, ...]
+
+
     # def generate_action(self, state):
     #     lb, ub, mu, sigma = self.sampling_params
-    #     elite = mu
-    #     for i in range(self.iterations):
-    #         # Following instructions from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.truncnorm
-    #         # .html
-    #         action_sequences = truncnorm.rvs(
-    #             a=(lb - mu) / sigma, b=(ub - mu) / sigma, loc=mu, scale=sigma,
-    #             size=(self.n_samples, self.horizon, self.action_space.shape[0])
-    #         )
-    #         # Propagate the same action sequences for #particles to get better statistics estimates.
-    #         action_sequences_batch = np.tile(action_sequences, (self.particles, 1, 1))
-    #         trajectories = self.model.simulate_trajectories(
-    #             np.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch)
-    #         assert np.isfinite(trajectories).all(), "Got a non-finite trajectory."
-    #         cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batch)
-    #         assert np.isfinite(cumulative_rewards.all()), "Got non-finite rewards."
-    #         scores = self.objective(cumulative_rewards)
-    #         elite = action_sequences[np.argsort(scores)[-self.elite:], ...]
-    #         elite_mu, elite_sigma = elite.mean(axis=0), elite.std(axis=0)
-    #         mu = self.smoothing * mu + (1.0 - self.smoothing) * elite_mu
-    #         sigma = self.smoothing * sigma + (1.0 - self.smoothing) * elite_sigma
-    #         if np.max(sigma) < 1e-1:
-    #             break
-    #     return elite[0, 0, ...]
-
-    def generate_action(self, state):
-        lb, ub, mu, sigma = self.sampling_params
-        action_sequences = np.random.uniform(lb, ub, (self.n_samples, self.horizon, self.action_space.shape[0]))
-        action_sequences_batches = np.tile(action_sequences, (self.particles, 1, 1))
-        trajectories = self.model.simulate_trajectories(
-            np.broadcast_to(state, (action_sequences_batches.shape[0], state.shape[0])), action_sequences_batches
-        )
-        cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batches)
-        scores = self.objective(cumulative_rewards)
-        best_trajectory_id = np.argmax(scores)
-        return action_sequences[best_trajectory_id, 0, :]
+    #     action_sequences = np.random.uniform(lb, ub, (self.n_samples, self.horizon, self.action_space.shape[0]))
+    #     action_sequences_batches = np.tile(action_sequences, (self.particles, 1, 1))
+    #     trajectories = self.model.simulate_trajectories(
+    #         np.broadcast_to(state, (action_sequences_batches.shape[0], state.shape[0])), action_sequences_batches
+    #     )
+    #     cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batches)
+    #     scores = self.objective(cumulative_rewards)
+    #     best_trajectory_id = np.argmax(scores)
+    #     return action_sequences[best_trajectory_id, 0, :]
 
     def compute_cumulative_rewards(self, trajectories, action_sequences):
-        cumulative_rewards = np.zeros((trajectories.shape[0],))
-        done_trajectories = np.zeros((trajectories.shape[0]), dtype=bool)
+        cumulative_rewards = tf.zeros((trajectories.shape[0],))
+        done_trajectories = tf.zeros((trajectories.shape[0]), dtype=bool)
         horizon = trajectories.shape[1]
         for t in range(horizon - 1):
             s_t = trajectories[:, t, ...]
             s_t_1 = trajectories[:, t + 1, ...]
             a_t = action_sequences[:, t, ...]
             reward, dones = self.reward(s_t, a_t, s_t_1)
-            done_trajectories = np.logical_or(
+            done_trajectories = tf.logical_or(
                 dones, done_trajectories)
-            cumulative_rewards += reward * (1 - done_trajectories)
+            cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
         return cumulative_rewards
 
     def build(self):
@@ -89,7 +97,7 @@ class CemMpc(PolicyBase):
     def sampling_params(self):
         if self.action_space.is_bounded():
             mean = (self.action_space.high + self.action_space.low) / 2.0
-            stddev = self.action_space.high - self.action_space.low
+            stddev = (self.action_space.high - self.action_space.low) / 2.0
             lower_bound = self.action_space.low
             upper_bound = self.action_space.high
         else:
@@ -98,12 +106,12 @@ class CemMpc(PolicyBase):
             lower_bound = -100
             upper_bound = 100
             mean = 0.0
-            stddev = 200
+            stddev = 100
         return lower_bound, upper_bound, mean, stddev
 
     def pets_objective(self, cumulative_rewards):
-        rewards_per_sample = cumulative_rewards.reshape((self.particles, self.n_samples))
-        return np.mean(rewards_per_sample, axis=0)
+        rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
+        return tf.reduce_mean(rewards_per_sample, axis=0)
 
     def pets_with_exploration_bonus(self, cumulative_rewards):
         rewards_per_sample_per_net = cumulative_rewards.reshape((5, -1, self.n_samples))

@@ -4,8 +4,8 @@ agents:
     action_repeat: 1
     add_observation_noise: False
   mbrl_agent:
-    train_batch_size: 1000000
-    train_interaction_steps: 400
+    train_batch_size: 5000
+    train_interaction_steps: 300
     episode_length: 200
     warmup_timesteps: 5000
     policy: cem_mpc

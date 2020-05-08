@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 from mujoco_py import MjViewer
@@ -34,16 +35,16 @@ class Reacher7DOFEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
-        reward, done = self.get_reward(ob, a)
+        reward, done = self.get_reward(np.expand_dims(ob, axis=0),
+                                       np.expand_dims(a, axis=0))
 
         score = self.get_score(ob)
 
         # finalize step
         env_info = {'ob': ob,
-                    'rewards': self.reward_dict,
                     'score': score}
 
-        return ob, reward, done, env_info
+        return ob, reward.numpy(), bool(done), env_info
 
     def get_score(self, obs):
         hand_pos = obs[-6:-3]
@@ -52,7 +53,6 @@ class Reacher7DOFEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return score
 
     def get_reward(self, observations, actions, *args, **kwargs):
-
         """get reward/s of given (observations, actions) datapoint or datapoints
 
         Args:
@@ -63,31 +63,14 @@ class Reacher7DOFEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             r_total: reward of this (o,a) pair, dimension is (batchsize,1) or (1,)
             done: True if env reaches terminal state, dimension is (batchsize,1) or (1,)
         """
-
-        #initialize and reshape as needed, for batch mode
-        self.reward_dict = {}
-        if(len(observations.shape)==1):
-            observations = np.expand_dims(observations, axis = 0)
-            actions = np.expand_dims(actions, axis = 0)
-            batch_mode = False
-        else:
-            batch_mode = True
-
         #get vars
         hand_pos = observations[:, -6:-3]
         target_pos = observations[:, -3:]
 
         #calc rew
-        dist = np.linalg.norm(hand_pos - target_pos, axis=1)
-        self.reward_dict['r_total'] = -10*dist
-
-        #done is always false for this env
-        dones = np.zeros((observations.shape[0],))
-
-        #return
-        if(not batch_mode):
-            return self.reward_dict['r_total'][0], dones[0]
-        return self.reward_dict['r_total'], dones
+        dist = tf.linalg.norm(hand_pos - target_pos, axis=1)
+        dones = tf.zeros((observations.shape[0],), dtype=tf.bool)
+        return -10 * dist, dones
 
     def reset(self):
         _ = self.reset_model()
