@@ -13,12 +13,13 @@ def main():
     from simba.infrastructure.trainer import RLTrainer
     parser = argparse.ArgumentParser()
     log_dir_suffix = time.strftime("%d-%m-%Y_%H-%M-%S")
+    parser.add_argument('--name', type=str, default='')
     parser.add_argument('--log_dir', type=str, default='experiments')
     parser.add_argument('--log_level', type=str, default='INFO')
     parser.add_argument('--config_dir', type=str, required=True)
     parser.add_argument('--config_basename', type=str, required=True)
     args = parser.parse_args()
-    experiment_log_dir = args.log_dir + '/' + log_dir_suffix
+    experiment_log_dir = args.log_dir + '/' + args.name + '_' + log_dir_suffix
     os.makedirs(experiment_log_dir, exist_ok=True)
     init_loggging(args.log_level)
     params = load_config_or_die(args.config_dir, args.config_basename)
