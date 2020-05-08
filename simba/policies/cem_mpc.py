@@ -35,15 +35,16 @@ class CemMpc(PolicyBase):
 
     @tf.function
     def do_generate_action(self, state):
-        _, _, mu, sigma = self.sampling_params
-        mu = tf.broadcast_to(mu, (self.horizon, mu.shape[0]))
-        sigma = tf.broadcast_to(sigma, (self.horizon, sigma.shape[0]))
-        for _ in tf.range(self.iterations):
-            action_sequences = tf.random.truncated_normal(
-                shape=(self.n_samples, self.horizon, self.action_space.shape[0]),
-                mean=mu,
-                stddev=sigma
+        lb, ub, mu, sigma = self.sampling_params
+        action_dim = self.action_space.shape[0]
+        mu = tf.broadcast_to(mu, (self.horizon, action_dim))
+        sigma = tf.broadcast_to(sigma, (self.horizon, action_dim))
+        for i in tf.range(self.iterations):
+            action_sequences = tf.random.normal(
+                shape=(self.n_samples, self.horizon, action_dim),
+                mean=mu, stddev=sigma
             )
+            action_sequences = tf.clip_by_value(action_sequences, lb, ub)
             action_sequences_batch = tf.tile(
                 action_sequences, (self.particles, 1, 1)
             )
@@ -53,12 +54,12 @@ class CemMpc(PolicyBase):
             cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batch)
             scores = self.objective(cumulative_rewards)
             _, elite = tf.nn.top_k(scores, self.elite, sorted=False)
-            best_actions = tf.gather(action_sequences, elite)
+            best_actions = tf.gather(action_sequences, elite, axis=0)
             mean, variance = tf.nn.moments(best_actions, axes=0)
-            stddev = tf.sqrt(variance + 1e-6)
+            stddev = tf.sqrt(variance)
             mu = self.smoothing * mu + (1.0 - self.smoothing) * mean
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * stddev
-            if tf.reduce_all(tf.less_equal(sigma, 1e-2)):
+            if tf.less_equal(tf.reduce_mean(sigma), 0.25):
                 break
         return mu[0, ...]
 
