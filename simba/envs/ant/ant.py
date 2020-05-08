@@ -103,7 +103,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         for i in range(len(self.model.actuator_gear)):
             self.model.actuator_gear[i][0]/=5
 
-    def get_reward(self, observations, actions):
+    def get_reward(self, observations, actions, *args, **kwargs):
 
         """get rewards of a given (observations, actions) pair
 

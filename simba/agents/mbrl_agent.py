@@ -21,7 +21,8 @@ class MbrlAgent(BaseAgent):
                  ):
         super().__init__(
             seed,
-            replay_buffer_size)
+            replay_buffer_size,
+            **kwargs)
         self.observation_space_dim = environment.observation_space.shape[0]
         self.actions_space_dim = environment.action_space.shape[0]
         self.train_batch_size = train_batch_size
@@ -132,7 +133,7 @@ def make_prediction_error_figure(predicted_states, ground_truth_states):
     observation_dim = ground_truth_states.shape[1]
     cols = 2
     rows = int(np.ceil(observation_dim / cols))
-    fig = plt.figure()
+    fig = plt.figure(figsize=(12, 12))
     t = np.arange(predicted_states.shape[1])
     for dim in range(observation_dim):
         ax = fig.add_subplot(rows, cols, dim + 1)

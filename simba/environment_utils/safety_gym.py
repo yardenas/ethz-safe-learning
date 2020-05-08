@@ -1,5 +1,6 @@
 import numpy as np
 from simba.environment_utils.mbrl_env import MbrlEnv
+from simba.infrastructure.logging_utils import logger
 
 
 class MbrlSafetyGym(MbrlEnv):
@@ -27,10 +28,14 @@ class SafetyGymStateScorer(object):
         self.last_box_observed = False
         self.sensor_offset_table = dict()
         offset = 0
+        observation_space_summary = "Observation space indices are: "
         for k, value in sorted(obs_space_dict.items()):
             k_size = np.prod(value.shape)
             self.sensor_offset_table[k] = slice(offset, offset + k_size)
+            observation_space_summary += \
+                (k + " [" + str(offset) + ", " + str(offset + k_size) + ") " + "\n")
             offset += k_size
+        logger.debug(observation_space_summary)
 
     def reset(self, observation):
         if self.task == 'goal':
@@ -51,7 +56,7 @@ class SafetyGymStateScorer(object):
             dist_goal = self.goal_distance_metric(observations_exp)
             next_dist_goal = self.goal_distance_metric(next_observations_exp)
             dones = np.less_equal(dist_goal, self.goal_size)
-            reward += (dist_goal - next_dist_goal) * self.reward_distance + dones * self.reward_goal
+            reward += -dist_goal * self.reward_distance + dones * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
             box_observed = np.any(

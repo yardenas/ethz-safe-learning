@@ -34,7 +34,7 @@ class TransitionModel(BaseModel):
         observations = inputs[:, :self.observation_space_dim]
         next_observations = targets
         return self.model.fit(
-            inputs,
+            self.scale_inputs(tf.constant(inputs, dtype=tf.float32)).numpy(),
             (next_observations - observations).astype(np.float32))
 
     def _fit_statistics(self, inputs):
@@ -67,7 +67,7 @@ class TransitionModel(BaseModel):
         s_t = s_0
         for t in tf.range(horizon):
             a_t = action_sequences[:, t, ...]
-            s_t_a_t_normalized = tf.concat([s_t, a_t], axis=1)
+            s_t_a_t_normalized = self.scale_inputs(tf.concat([s_t, a_t], axis=1))
             # The model predicts s_t_1 - s_t hence we add here the previous state.
             mus, sigmas, d_s_t = self.model(s_t_a_t_normalized)
             s_t += mus
@@ -75,13 +75,15 @@ class TransitionModel(BaseModel):
             trajectories = trajectories.write(t, s_t)
         return tf.transpose(trajectories.stack(), [1, 0, 2])
 
-    @tf.function
+    @tf.function(
+        input_signature=[tf.TensorSpec(shape=None, dtype=tf.float32)]
+    )
     def scale_inputs(self, inputs):
         if not self.scale_features:
             return inputs
         delta = self.inputs_max - self.inputs_min
-        delta = tf.where(tf.less(delta, 1e-2), 1.01, delta)
-        return (inputs - self.inputs_min) * 2.0 / delta + -1.0
+        delta = tf.where(tf.less(delta, 1e-5), 1.01, delta)
+        return (inputs - self.inputs_min) / delta
 
     def save(self):
         pass

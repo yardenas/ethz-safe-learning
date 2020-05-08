@@ -35,7 +35,7 @@ class RLTrainer(object):
                     self.eval_interaction_steps,
                     self.eval_episode_length
                 ), iteration)
-            if self.log_frequency > 0 and iteration % self.video_log_frequency == 0:
+            if self.video_log_frequency > 0 and iteration % self.video_log_frequency == 0:
                 self.log_video(self.agent.render_trajectory(
                     environment=self.environment,
                     policy=self.agent.policy,

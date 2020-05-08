@@ -15,7 +15,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.action_dim = self.ac_dim = self.action_space.shape[0]
         self.observation_dim = self.obs_dim = self.observation_space.shape[0]
 
-    def get_reward(self, observations, actions):
+    def get_reward(self, observations, actions, *args, **kwargs):
 
         """get reward/s of given (observations, actions) datapoint or datapoints
 

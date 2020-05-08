@@ -3,7 +3,7 @@ import safety_gym
 
 
 def main():
-    sg6 = ['PointGoal1', 'PointGoal2', 'PointButton1',
+    sg6 = ['PointGoal0', 'PointGoal2', 'PointButton1',
            'PointPush1', 'CarGoal1', 'DoggoGoal1']
     for environment in sg6:
         env = gym.make('Safexp-' + environment + '-v0')
