@@ -48,7 +48,7 @@ class MbrlAgent(BaseAgent):
 
     def update(self):
         # TODO (yarden): not sure about random data, maybe everything, maybe sample N trajectories.
-        observations, actions, _, next_observations, _ = \
+        observations, actions, next_observations, _, _ = \
             self.replay_buffer.sample_recent_data(self.train_batch_size)
         observations_with_actions = np.concatenate([
             observations,
