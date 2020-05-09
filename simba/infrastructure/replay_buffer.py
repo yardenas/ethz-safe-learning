@@ -2,7 +2,9 @@ import numpy as np
 
 
 class ReplayBuffer(object):
-    def __init__(self, max_size):
+    def __init__(self,
+                 max_size,
+                 add_noise):
         self.max_size = max_size
         self.paths = []
         self.observations = None
@@ -10,15 +12,15 @@ class ReplayBuffer(object):
         self.rewards = None
         self.next_observations = None
         self.terminals = None
-        self.add_noise = None
+        self.add_noise = add_noise
 
     def store(self, paths):
         # add new rollouts into our list of rollouts
         for path in paths:
             self.paths.append(path)
         # convert new rollouts into their component arrays, and append them onto our arrays
-        observations, actions, next_observations,\
-            terminals, rewards = \
+        observations, actions, next_observations, \
+        terminals, rewards = \
             concatenate_rollouts(paths)
         if self.add_noise:
             observations = add_noise(observations)
@@ -52,16 +54,16 @@ class ReplayBuffer(object):
         assert self.observations.shape[0] == self.actions.shape[0] == \
                self.rewards.shape[0] == self.next_observations.shape[0] == self.terminals.shape[0]
         rand_indices = np.random.permutation(self.observations.shape[0])[:batch_size]
-        return self.observations[rand_indices],\
-            self.actions[rand_indices],\
-            self.rewards[rand_indices],\
-            self.observations[rand_indices],\
-            self.terminals[rand_indices]
+        return self.observations[rand_indices], \
+               self.actions[rand_indices], \
+               self.next_observations[rand_indices], \
+               self.terminals[rand_indices], \
+               self.rewards[rand_indices]
 
     def sample_recent_data(self, batch_size=1, concat_rew=True):
         if concat_rew:
-            return self.observations[-batch_size:], self.actions[-batch_size:], self.rewards[-batch_size:], \
-                   self.next_observations[-batch_size:], self.terminals[-batch_size:]
+            return self.observations[-batch_size:], self.actions[-batch_size:], self.next_observations[-batch_size:], \
+                   self.terminals[-batch_size:], self.rewards[-batch_size:]
         else:
             num_recent_rollouts_to_return = 0
             num_datapoints_so_far = 0
@@ -74,7 +76,7 @@ class ReplayBuffer(object):
             rollouts_to_return = self.paths[-num_recent_rollouts_to_return:]
             observations, actions, next_observations, terminals, rewards = \
                 concatenate_rollouts(rollouts_to_return)
-            return observations, actions, next_observations, terminals
+            return observations, actions, next_observations, terminals, rewards
 
 
 def path_summary(observations,
@@ -116,7 +118,7 @@ def add_noise(data, noise_to_signal=0.01):
     :return:
     """
     mean_data = np.mean(data, axis=0)
-    mean_data[mean_data == 0] = 1e-8
+    mean_data[mean_data == 0] = 1e-5
     std_of_noise = np.abs(mean_data * noise_to_signal)
     return data + np.random.normal(0.0, std_of_noise, data.shape)
 

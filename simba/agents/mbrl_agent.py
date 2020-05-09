@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from simba.infrastructure.common import standardize_name
 from simba.infrastructure.logging_utils import logger
 from simba.agents import BaseAgent
-from simba.policies import CemMpc, RandomMpc
+from simba.policies import CemMpc, MppiMpc, RandomShootingMpc, RandomMpc
 from simba.models.transition_model import TransitionModel
 
 
@@ -21,7 +21,8 @@ class MbrlAgent(BaseAgent):
                  ):
         super().__init__(
             seed,
-            replay_buffer_size)
+            replay_buffer_size,
+            **kwargs)
         self.observation_space_dim = environment.observation_space.shape[0]
         self.actions_space_dim = environment.action_space.shape[0]
         self.train_batch_size = train_batch_size
@@ -47,7 +48,7 @@ class MbrlAgent(BaseAgent):
 
     def update(self):
         # TODO (yarden): not sure about random data, maybe everything, maybe sample N trajectories.
-        observations, actions, _, next_observations, _ = \
+        observations, actions, next_observations, _, _ = \
             self.replay_buffer.sample_recent_data(self.train_batch_size)
         observations_with_actions = np.concatenate([
             observations,
@@ -94,9 +95,9 @@ class MbrlAgent(BaseAgent):
             eval_episode_length)
         eval_return_values = np.array([trajectory['reward'].sum() for
                                        trajectory in evaluation_trajectories])
-        eval_policy_predicted_return_values = np.array([self.policy.compute_cumulative_rewards(
-            np.expand_dims(trajectory['observation'], axis=0),
-            np.expand_dims(trajectory['action'], axis=0)) for trajectory in evaluation_trajectories])
+        # eval_policy_predicted_return_values = np.array([self.policy.compute_cumulative_rewards(
+        #     np.expand_dims(trajectory['observation'], axis=0),
+        #     np.expand_dims(trajectory['action'], axis=0)) for trajectory in evaluation_trajectories])
         ground_truth_states = evaluation_trajectories[0]['observation']
         action_sequences = np.tile(evaluation_trajectories[0]['action'], (20, 1, 1))
         start_states = np.tile(ground_truth_states[0, ...], (20, 1))
@@ -107,7 +108,7 @@ class MbrlAgent(BaseAgent):
         self.training_report.update(dict(
             eval_rl_objective=eval_return_values.mean(),
             sum_rewards_stddev=eval_return_values.std(),
-            eval_policy_predicted_return_values=eval_policy_predicted_return_values.mean()
+            # eval_policy_predicted_return_values=eval_policy_predicted_return_values.mean()
         ))
         return self.training_report
 
@@ -132,7 +133,7 @@ def make_prediction_error_figure(predicted_states, ground_truth_states):
     observation_dim = ground_truth_states.shape[1]
     cols = 2
     rows = int(np.ceil(observation_dim / cols))
-    fig = plt.figure()
+    fig = plt.figure(figsize=(12, 12))
     t = np.arange(predicted_states.shape[1])
     for dim in range(observation_dim):
         ax = fig.add_subplot(rows, cols, dim + 1)

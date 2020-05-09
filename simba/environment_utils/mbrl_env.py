@@ -6,6 +6,6 @@ class MbrlEnv(gym.Wrapper):
         environment = gym.make(env_name)
         super(MbrlEnv, self).__init__(environment)
 
-    def get_reward(self, obs, acs, next_obs):
+    def get_reward(self, obs, acs, *args, **kwargs):
         raise NotImplementedError
 
