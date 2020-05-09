@@ -4,6 +4,6 @@ policies:
     iterations: 10
     objective: TODOYARDEN
     smoothing: 0.0
-    n_samples: 1000
-    n_elite: 50
+    n_samples: 300
+    n_elite: 20
     particles: 5
