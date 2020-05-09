@@ -1,5 +1,3 @@
-import numpy as np
-
 from simba.policies.policy import PolicyBase
 from simba.infrastructure.logging_utils import logger
 

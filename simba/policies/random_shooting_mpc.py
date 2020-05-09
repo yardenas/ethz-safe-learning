@@ -3,7 +3,7 @@ from simba.policies.mpc_policy import MpcPolicy
 from simba.infrastructure.logging_utils import logger
 
 
-class CemMpc(MpcPolicy):
+class RandomShootingMpc(MpcPolicy):
     def __init__(self,
                  model,
                  environment,

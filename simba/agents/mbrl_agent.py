@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from simba.infrastructure.common import standardize_name
 from simba.infrastructure.logging_utils import logger
 from simba.agents import BaseAgent
-from simba.policies import CemMpc, RandomMpc
+from simba.policies import CemMpc, MppiMpc, RandomShootingMpc, RandomMpc
 from simba.models.transition_model import TransitionModel
 
 
