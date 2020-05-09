@@ -89,7 +89,9 @@ class MlpEnsemble(tf.Module):
         self.mlp_params = mlp_params
         self.ensemble = [GaussianDistMlp(inputs_dim=self.inputs_dim, outputs_dim=self.outputs_dim, **self.mlp_params)
                          for _ in range(self.ensemble_size)]
-        self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
+        self.optimizer = tf.keras.optimizers.Adam(self.learning_rate,
+                                                  clipvalue=1.0)
+                                                  # epsilon=1e-5)
 
     def build(self):
         pass
@@ -115,8 +117,7 @@ class MlpEnsemble(tf.Module):
                 loss = negative_log_likelihood(targets[i, ...], mu, var)
                 losses.append(loss)
                 grads = tape.gradient(loss, mlp.trainable_variables)
-                clipped_grads = [tf.clip_by_value(grad, -1.0, 1.0) for grad in grads]
-                self.optimizer.apply_gradients(zip(clipped_grads, mlp.trainable_variables))
+                self.optimizer.apply_gradients(zip(grads, mlp.trainable_variables))
         return losses
 
     def fit(self, inputs, targets):

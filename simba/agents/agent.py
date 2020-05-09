@@ -12,8 +12,13 @@ class BaseAgent(object):
     def __init__(self,
                  seed,
                  replay_buffer_size,
+                 add_observation_noise,
+                 action_repeat,
+                 *args,
+                 **kwargs
                  ):
-        self.replay_buffer = rb.ReplayBuffer(replay_buffer_size)
+        self.replay_buffer = rb.ReplayBuffer(replay_buffer_size, add_observation_noise)
+        self.action_repeat = action_repeat
         self.set_random_seeds(seed)
         self.training_report = dict()
         self.total_training_steps = 0
@@ -102,21 +107,23 @@ class BaseAgent(object):
         rewards, next_observations, \
         terminals, image_obs = [], [], [], [], [], []
         steps = 0
-        while True:
-            observations.append(observation)
+        rollout_done = False
+        while not rollout_done:
             action = policy.generate_action(observation)
-            actions.append(action)
-            observation, reward, done, _ = \
-                environment.step(action)
-            steps += 1
-            next_observations.append(observation)
-            rewards.append(reward)
-            rollout_done = int((steps == max_trajectory_length)
-                               or done)
-            terminals.append(rollout_done)
-            pbar.update(1)
-            if rollout_done:
-                break
+            for _ in range(self.action_repeat):
+                observations.append(observation)
+                actions.append(action)
+                observation, reward, done, _ = \
+                    environment.step(action)
+                steps += 1
+                next_observations.append(observation)
+                rewards.append(reward)
+                rollout_done = int((steps == max_trajectory_length)
+                                   or done)
+                terminals.append(rollout_done)
+                pbar.update(1)
+                if rollout_done:
+                    break
         # A more safe assert would be to check all of the actions, but compute time is not cheap.
         # (Although premature optimization is the root of all evil.)
         assert actions[0].shape == environment.action_space.shape, "Policy produces wrong actions shape."
