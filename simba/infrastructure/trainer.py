@@ -65,7 +65,7 @@ class RLTrainer(object):
             )
         predicted_trajectory, ground_truth_trajectory = report.pop('predicted_states_vs_ground_truth')
         for i, (predicted_state, ground_truth_state) in \
-                enumerate(zip(predicted_trajectory, ground_truth_trajectory)):
+                enumerate(zip(predicted_trajectory.transpose(), ground_truth_trajectory.transpose())):
             for t, (predicted_value, ground_truth_value) in enumerate(zip(predicted_state, ground_truth_state)):
                 self.training_logger.log_scalars(
                     scalar_dict={'ground truth': ground_truth_value,

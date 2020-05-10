@@ -103,7 +103,7 @@ class MbrlAgent(BaseAgent):
         start_states = np.tile(ground_truth_states[0, ...], (5, 1))
         predicted_states = self.model.simulate_trajectories(
             start_states, action_sequences).reshape((5, ground_truth_states.shape[0], ground_truth_states.shape[1]))
-        self.training_report['predicted_states_vs_ground_truth'] = (predicted_states,
+        self.training_report['predicted_states_vs_ground_truth'] = (predicted_states.mean(axis=0),
                                                                     ground_truth_states)
         self.training_report.update(dict(
             eval_rl_objective=eval_return_values.mean(),
@@ -129,24 +129,3 @@ class MbrlAgent(BaseAgent):
             **model_params)
 
 
-def make_prediction_error_figure(predicted_states, ground_truth_states):
-    observation_dim = ground_truth_states.shape[1]
-    cols = 2
-    rows = int(np.ceil(observation_dim / cols))
-    fig = plt.figure(figsize=(12, 12))
-    t = np.arange(predicted_states.shape[1])
-    for dim in range(observation_dim):
-        ax = fig.add_subplot(rows, cols, dim + 1)
-        ax.errorbar(t, predicted_states[..., dim].mean(axis=0),
-                    yerr=predicted_states[..., dim].std(axis=0),
-                    c='bisque', ls='None', marker='.', ms=3,
-                    label='predicted distributions', alpha=0.7)
-        ax.plot(ground_truth_states[..., dim], 'skyblue',
-                label='ground truth')
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-    handles, labels = ax.get_legend_handles_labels()
-    fig.legend(handles, labels, loc='lower right', fontsize='medium')
-    mse = np.mean((predicted_states - ground_truth_states) ** 2)
-    fig.suptitle('Predicted states vs. true states \n' + 'Mean squared error: ' + str(mse))
-    return fig
