@@ -60,12 +60,19 @@ class RLTrainer(object):
         for i, loss in enumerate(losses):
             self.training_logger.log_scalars(
                 scalar_dict={'loss': loss},
-                group_name='model_training_losses',
+                group_name='losses/epoch/' + str(epoch),
                 step=i,
-                phase=epoch
             )
-        self.training_logger.log_figure(report.pop('predicted_states_vs_ground_truth'),
-                                        'predicted_vs_ground_truth', epoch)
+        predicted_trajectory, ground_truth_trajectory = report.pop('predicted_states_vs_ground_truth')
+        for i, (predicted_state, ground_truth_state) in \
+                enumerate(zip(predicted_trajectory, ground_truth_trajectory)):
+            for t, (predicted_value, ground_truth_value) in enumerate(zip(predicted_state, ground_truth_state)):
+                self.training_logger.log_scalars(
+                    scalar_dict={'ground truth': ground_truth_value,
+                                 'predicted': predicted_value.mean()},
+                    group_name='states/epoch/' + str(epoch) + '/state_id/' + str(i),
+                    step=t
+                )
         for key, value in report.items():
             self.training_logger.log_scalar(value, key, epoch)
         self.training_logger.flush()

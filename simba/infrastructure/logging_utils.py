@@ -29,12 +29,12 @@ class TrainingLogger:
         logger.info('Logging training data to: ' + log_dir)
         self._summ_writer = SummaryWriter(log_dir, flush_secs=1, max_queue=1)
 
-    def log_scalar(self, scalar, name, step_):
-        self._summ_writer.add_scalar('{}'.format(name), scalar, step_)
+    def log_scalar(self, scalar, name, step):
+        self._summ_writer.add_scalar('{}'.format(name), scalar, step)
 
-    def log_scalars(self, scalar_dict, group_name, step, phase):
+    def log_scalars(self, scalar_dict, group_name, step):
         """Will log all scalars in the same plot."""
-        self._summ_writer.add_scalars('{}_{}'.format(group_name, phase), scalar_dict, step)
+        self._summ_writer.add_scalars('{}'.format(group_name), scalar_dict, step)
 
     def log_image(self, image, name, step):
         assert(len(image.shape) == 3)  # [C, H, W]
