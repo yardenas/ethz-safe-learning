@@ -7,7 +7,7 @@ policies:
     n_samples: 150
     n_elite: 30
     particles: 5
-   mppi_mpc:
+  mppi_mpc:
     horizon: 10
     objective: TODOYARDEN
     n_samples: 1000
