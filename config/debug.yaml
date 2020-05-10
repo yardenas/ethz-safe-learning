@@ -10,6 +10,6 @@ options:
   seed: 1
   train_iterations: 90
   agent: mbrl_agent
-  environment: MbrlInvertedPendulum
+  environment: MbrlReacher7DOF
 
 
