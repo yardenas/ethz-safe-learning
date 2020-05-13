@@ -66,13 +66,14 @@ class TransitionModel(BaseModel):
         trajectories = tf.TensorArray(tf.float32, size=horizon)
         s_t = s_0
         for t in tf.range(horizon):
+            trajectories = trajectories.write(t, s_t)
             a_t = action_sequences[:, t, ...]
             s_t_a_t_normalized = self.scale_inputs(tf.concat([s_t, a_t], axis=1))
             # The model predicts s_t_1 - s_t hence we add here the previous state.
             mus, sigmas, d_s_t = self.model(s_t_a_t_normalized)
             s_t += mus
             # s_t += d_s_t
-            trajectories = trajectories.write(t, s_t)
+        trajectories.write(horizon + 1, s_t)
         return tf.transpose(trajectories.stack(), [1, 0, 2])
 
     @tf.function(
