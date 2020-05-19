@@ -7,36 +7,44 @@ from simba.infrastructure.logging_utils import logger
 class MbrlSafetyGym(MbrlEnv):
     def __init__(self, task_name):
         super().__init__(task_name)
-        self._scorer = SafetyGymStateScorer(
-            self.env.config,
-            self.env.obs_space_dict)
-
-    def get_reward(self, obs, acs, *args, **kwargs):
-        return self._scorer.reward(obs, *args, **kwargs)
-
-    def reset(self, **kwargs):
-        observation = self.env.reset(**kwargs)
-        self._scorer.reset(observation)
-        return observation
-
-
-class SafetyGymStateScorer(object):
-    def __init__(self, config={}, obs_space_dict={}):
-        for key, value in config.items():
-            setattr(self, key, value)
-        self.last_dist_box = 1e3
-        self.last_box_goal = 1e3
-        self.last_box_observed = False
-        self.sensor_offset_table = dict()
         offset = 0
         observation_space_summary = "Observation space indices are: "
-        for k, value in sorted(obs_space_dict.items()):
+        self.sensor_offset_table = dict()
+        for k, value in sorted(self.env.obs_space_dict.items()):
             k_size = np.prod(value.shape)
             self.sensor_offset_table[k] = slice(offset, offset + k_size)
             observation_space_summary += \
                 (k + " [" + str(offset) + ", " + str(offset + k_size) + ") " + "\n")
             offset += k_size
         logger.debug(observation_space_summary)
+        self._scorer = SafetyGymStateScorer(
+            self.sensor_offset_table,
+            self.env.config)
+
+    def get_reward(self, obs, acs, *args, **kwargs):
+        return self._scorer.reward(obs, *args, **kwargs)
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+        # Predicting distances in exponential-space seems to really hold back the model from learning anything.
+        observation[self.sensor_offset_table['goal_dist']] = -np.log(observation[self.sensor_offset_table['goal_dist']])
+        return observation, reward, done, info
+
+
+def reset(self, **kwargs):
+    observation = self.env.reset(**kwargs)
+    self._scorer.reset(observation)
+    return observation
+
+
+class SafetyGymStateScorer(object):
+    def __init__(self, config, sensor_offset_table):
+        for key, value in config.items():
+            setattr(self, key, value)
+        self.last_dist_box = 1e3
+        self.last_box_goal = 1e3
+        self.last_box_observed = False
+        self.sensor_offset_table = sensor_offset_table
 
     def reset(self, observation):
         if self.task == 'goal':
@@ -52,7 +60,8 @@ class SafetyGymStateScorer(object):
             dist_goal = self.goal_distance_metric(observations)
             next_dist_goal = self.goal_distance_metric(next_observations)
             dones = tf.less_equal(dist_goal, self.goal_size)
-            reward += -dist_goal * self.reward_distance + tf.cast(dones, tf.float32) * self.reward_goal
+            reward += (dist_goal - next_dist_goal) * self.reward_distance + \
+                      tf.cast(dones, tf.float32) * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
             box_observed = np.any(
@@ -113,9 +122,8 @@ class SafetyGymStateScorer(object):
         return cost
 
     def goal_distance_metric(self, observations):
-        return tf.squeeze(tf.clip_by_value(
-            -tf.math.log(tf.clip_by_value(observations[:, self.sensor_offset_table['goal_dist']], 1e-5, np.inf)),
-            0.0, np.inf))
+        # Just a fancy way to clip negative values.
+        return tf.squeeze(tf.nn.relu(observations[:, self.sensor_offset_table['goal_dist']]))
 
     def push_distance_metric(self, observations):
         box_lidar = observations[:, self.sensor_offset_table['box_lidar']]
