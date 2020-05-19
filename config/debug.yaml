@@ -10,6 +10,6 @@ options:
   seed: 1
   train_iterations: 90
   agent: mbrl_agent
-  environment: MbrlReacher7DOF
+  environment: MbrlSafexp-PointGoal1-v0
 
 
