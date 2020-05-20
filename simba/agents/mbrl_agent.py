@@ -95,9 +95,6 @@ class MbrlAgent(BaseAgent):
             eval_episode_length)
         eval_return_values = np.array([trajectory['reward'].sum() for
                                        trajectory in evaluation_trajectories])
-        # eval_policy_predicted_return_values = np.array([self.policy.compute_cumulative_rewards(
-        #     np.expand_dims(trajectory['observation'], axis=0),
-        #     np.expand_dims(trajectory['action'], axis=0)) for trajectory in evaluation_trajectories])
         ground_truth_states = evaluation_trajectories[0]['observation']
         action_sequences = np.tile(evaluation_trajectories[0]['action'], (5, 1, 1))
         start_states = np.tile(ground_truth_states[0, ...], (5, 1))
@@ -108,7 +105,6 @@ class MbrlAgent(BaseAgent):
         self.training_report.update(dict(
             eval_rl_objective=eval_return_values.mean(),
             sum_rewards_stddev=eval_return_values.std(),
-            # eval_policy_predicted_return_values=eval_policy_predicted_return_values.mean()
         ))
         return self.training_report
 
