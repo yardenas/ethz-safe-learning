@@ -5,9 +5,9 @@ agents:
     add_observation_noise: False
   mbrl_agent:
     train_batch_size: 5000
-    train_interaction_steps: 300
-    episode_length: 200
-    warmup_timesteps: 5000
+    train_interaction_steps: 1000
+    episode_length: 1000
+    warmup_timesteps: 10000
     policy: cem_mpc
     model: mlp_ensemble
     scale_features: True

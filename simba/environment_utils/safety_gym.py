@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from simba.environment_utils.mbrl_env import MbrlEnv
 from simba.infrastructure.logging_utils import logger
 
@@ -6,79 +7,76 @@ from simba.infrastructure.logging_utils import logger
 class MbrlSafetyGym(MbrlEnv):
     def __init__(self, task_name):
         super().__init__(task_name)
-        self._scorer = SafetyGymStateScorer(
-            self.env.config,
-            self.env.obs_space_dict)
-
-    def get_reward(self, obs, acs, *args, **kwargs):
-        return self._scorer.reward(obs, *args, **kwargs)
-
-    def reset(self, **kwargs):
-        observation = self.env.reset(**kwargs)
-        self._scorer.reset(observation)
-        return observation
-
-
-class SafetyGymStateScorer(object):
-    def __init__(self, config={}, obs_space_dict={}):
-        for key, value in config.items():
-            setattr(self, key, value)
-        self.last_dist_box = 1e3
-        self.last_box_goal = 1e3
-        self.last_box_observed = False
-        self.sensor_offset_table = dict()
         offset = 0
         observation_space_summary = "Observation space indices are: "
-        for k, value in sorted(obs_space_dict.items()):
+        self.sensor_offset_table = dict()
+        for k, value in sorted(self.env.obs_space_dict.items()):
             k_size = np.prod(value.shape)
             self.sensor_offset_table[k] = slice(offset, offset + k_size)
             observation_space_summary += \
                 (k + " [" + str(offset) + ", " + str(offset + k_size) + ") " + "\n")
             offset += k_size
         logger.debug(observation_space_summary)
+        self._scorer = SafetyGymStateScorer(
+            self.env.config,
+            self.sensor_offset_table)
 
-    def reset(self, observation):
-        if self.task == 'goal':
-            pass
-        elif self.task == 'push':
-            self.last_box_goal, self.last_dist_box = self.push_distance_metric(observation)
+    def get_reward(self, obs, acs, *args, **kwargs):
+        return self._scorer.reward(obs, *args, **kwargs)
+
+    def fix_observation(self, observation):
+        # Predicting distances in exponential-space seems to really hold back the model from learning anything.
+        observation[self.sensor_offset_table['goal_dist']] = -np.log(observation[self.sensor_offset_table['goal_dist']])
+        return observation
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+        return self.fix_observation(observation), reward, done, info
+
+    def reset(self, **kwargs):
+        observation = self.env.reset()
+        return self.fix_observation(observation)
+
+
+class SafetyGymStateScorer(object):
+    def __init__(self, config, sensor_offset_table):
+        for key, value in config.items():
+            setattr(self, key, value)
+        self.last_box_observed = False
+        self.sensor_offset_table = sensor_offset_table
 
     def reward(self, observations, next_observations):
-        """ Calculate the dense component of reward.  Call exactly once per step """
-        observations_exp = np.expand_dims(observations, axis=0) if observations.ndim == 1 else \
-            observations
-        next_observations_exp = np.expand_dims(next_observations, axis=0) if next_observations.ndim == 1 else \
-            next_observations
-        reward = np.zeros((observations.shape[0],))
-        dones = np.zeros_like(reward, dtype=bool)
+        reward = tf.zeros((observations.shape[0],))
+        dones = tf.zeros_like(reward, dtype=tf.bool)
         # Distance from robot to goal
         if self.task == 'goal':
-            dist_goal = self.goal_distance_metric(observations_exp)
-            next_dist_goal = self.goal_distance_metric(next_observations_exp)
-            dones = np.less_equal(dist_goal, self.goal_size)
-            reward += -dist_goal * self.reward_distance + dones * self.reward_goal
+            dist_goal = self.goal_distance_metric(observations)
+            next_dist_goal = self.goal_distance_metric(next_observations)
+            dones = tf.less_equal(dist_goal, self.goal_size)
+            reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(dones, tf.float32) * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
-            box_observed = np.any(
-                observations_exp[:, self.sensor_offset_table['box_lidar']] > 0.0, axis=1)
-            rewards_gate = np.logical_and(box_observed, self.last_box_observed)
-            dist_box_goal, dist_box = self.push_distance_metric(observations_exp)
-            dones = np.less_equal(dist_box_goal, self.goal_size)
-            reward += ((self.last_box_goal - dist_box_goal) * self.reward_box_goal +
-                       dones * self.reward_goal) * rewards_gate
-            self.last_box_goal = dist_box_goal
-            gate_dist_box_reward = np.greater(self.last_dist_box, self.box_null_dist * self.box_size)
-            reward += ((self.last_dist_box - dist_box) * self.reward_box_dist * gate_dist_box_reward) * rewards_gate
-            self.last_dist_box = dist_box
-            self.last_box_observed = box_observed
+            box_observed = tf.math.reduce_any(
+                tf.greater(observations[:, self.sensor_offset_table['box_lidar']], 0.0), axis=1)
+            next_box_observed = tf.math.reduce_any(
+                tf.greater(next_observations[:, self.sensor_offset_table['box_lidar']], 0.0), axis=1)
+            rewards_gate = tf.logical_and(box_observed, next_box_observed)
+            dist_box_goal, dist_box = self.push_distance_metric(observations)
+            next_dist_box_goal, next_dist_box = self.push_distance_metric(next_observations)
+            dones = tf.less_equal(dist_box_goal, self.goal_size)
+            reward += ((dist_box_goal - next_dist_box_goal) * self.reward_box_goal +
+                       tf.cast(dones, tf.float32) * self.reward_goal) * tf.cast(rewards_gate, tf.float32)
+            gate_dist_box_reward = tf.greater(dist_box, self.box_null_dist * self.box_size)
+            reward += ((dist_box - next_dist_box) * self.reward_box_dist *
+                       tf.cast(gate_dist_box_reward, tf.float32)) * tf.cast(rewards_gate, tf.float32)
         # Intrinsic reward for uprightness
         if self.reward_orientation:
-            accelerometer = observations_exp[:, self.sensor_offset_table['acceleration']]
-            zalign = (accelerometer / np.linalg.norm(accelerometer, axis=1, keepdims=True))
-            reward += self.reward_orientation_scale * zalign.dot([0.0, 0.0, 1.0])
+            accelerometer = observations[:, self.sensor_offset_table['acceleration']]
+            zalign = (accelerometer / tf.linalg.norm(accelerometer, axis=1, keepdims=True))
+            reward += self.reward_orientation_scale * tf.linalg.tensordot(zalign, ([0.0, 0.0, 1.0]))
         # Clip reward
         if self.reward_clip:
-            np.clip(reward, -self.reward_clip, self.reward_clip, out=reward)
+            reward = tf.clip_by_value(reward, -self.reward_clip, self.reward_clip)
         return reward, dones
 
     def cost(self, observations):
@@ -117,41 +115,37 @@ class SafetyGymStateScorer(object):
         return cost
 
     def goal_distance_metric(self, observations):
-        observations_exp = np.expand_dims(observations, axis=0) if observations.ndim == 1 else \
-            observations
-        return np.clip(
-            -np.log(np.clip(observations_exp[:, self.sensor_offset_table['goal_dist']], 1e-5, np.inf)),
-            0.0, np.inf).squeeze()
+        # Just a fancy way to clip negative values.
+        return tf.squeeze(tf.nn.relu(observations[:, self.sensor_offset_table['goal_dist']]))
 
     def push_distance_metric(self, observations):
-        observations_exp = np.expand_dims(observations, axis=0) if observations.ndim == 1 else \
-            observations
-        box_lidar = observations_exp[:, self.sensor_offset_table['box_lidar']]
+        box_lidar = observations[:, self.sensor_offset_table['box_lidar']]
         dist_box = self.closest_distance(box_lidar, 0.01)
-        dist_goal = -np.log(observations_exp[:, self.sensor_offset_table['goal_dist']])
+        dist_goal = -tf.math.log(observations[:, self.sensor_offset_table['goal_dist']])
         box_direction = self.average_direction(box_lidar)
-        goal_position = dist_goal * observations_exp[:, self.sensor_offset_table['goal_compass']]
+        goal_position = dist_goal * observations[:, self.sensor_offset_table['goal_compass']]
         box_position = dist_box * box_direction
-        dist_box_goal = np.linalg.norm(goal_position - box_position, axis=1)
+        dist_box_goal = tf.linalg.norm(goal_position - box_position, axis=1)
         return dist_box_goal, dist_box
 
     def closest_distance(self, lidar_measurement, eps=0.0):
         if self.lidar_max_dist is None:
-            return -np.log(np.max(lidar_measurement, axis=1) + 1e-100) / self.lidar_exp_gain
+            return -tf.math.log(tf.reduce_max(lidar_measurement, axis=1) + 1e-100) / self.lidar_exp_gain
         else:
-            return np.minimum(self.lidar_max_dist - np.max(lidar_measurement, axis=1) * self.lidar_max_dist - eps,
-                              self.lidar_max_dist)
+            return tf.minimum(
+                self.lidar_max_dist - tf.reduce_max(lidar_measurement, axis=1) * self.lidar_max_dist - eps,
+                self.lidar_max_dist)
 
     def average_direction(self, lidar_measurement):
-        angles = (np.arange(self.lidar_num_bins) + 0.5) * 2.0 * np.pi / self.lidar_num_bins
-        x = np.cos(angles)
-        x = np.broadcast_to(
+        angles = (tf.range(self.lidar_num_bins) + 0.5) * 2.0 * np.pi / self.lidar_num_bins
+        x = tf.math.cos(angles)
+        x = tf.broadcast_to(
             x, (lidar_measurement.shape[0], x.shape[0])
         )
-        y = np.sin(angles)
-        y = np.broadcast_to(
+        y = tf.math.sin(angles)
+        y = tf.broadcast_to(
             y, (lidar_measurement.shape[0], y.shape[0])
         )
-        averaged_x = np.average(x, weights=lidar_measurement + 1e-7, axis=1)
-        averaged_y = np.average(y, weights=lidar_measurement + 1e-7, axis=1)
+        averaged_x = tf.reduce_sum(tf.linalg.tensordot(x, lidar_measurement + 1e-7, axis=1))
+        averaged_y = tf.reduce_sum(tf.linalg.tensordot(y, lidar_measurement + 1e-7, axis=1))
         return np.stack((averaged_x, averaged_y), axis=1)
