@@ -31,24 +31,12 @@ class MbrlSafetyGym(MbrlEnv):
         return observation, reward, done, info
 
 
-def reset(self, **kwargs):
-    observation = self.env.reset(**kwargs)
-    self._scorer.reset(observation)
-    return observation
-
-
 class SafetyGymStateScorer(object):
     def __init__(self, config, sensor_offset_table):
         for key, value in config.items():
             setattr(self, key, value)
         self.last_box_observed = False
         self.sensor_offset_table = sensor_offset_table
-
-    def reset(self, observation):
-        if self.task == 'goal':
-            pass
-        elif self.task == 'push':
-            pass
 
     def reward(self, observations, next_observations):
         reward = tf.zeros((observations.shape[0],))
