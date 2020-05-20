@@ -74,7 +74,7 @@ class RLTrainer(object):
                     step=t
                 )
         for key, value in report.items():
-            self.training_logger.log_scalar(value, key, epoch)
+            self.training_logger.log_scalar('general_training/' + value, key, epoch)
         self.training_logger.flush()
 
     def log_video(self, trajectory_records, epoch):

@@ -18,8 +18,8 @@ class MbrlSafetyGym(MbrlEnv):
             offset += k_size
         logger.debug(observation_space_summary)
         self._scorer = SafetyGymStateScorer(
-            self.sensor_offset_table,
-            self.env.config)
+            self.env.config,
+            self.sensor_offset_table)
 
     def get_reward(self, obs, acs, *args, **kwargs):
         return self._scorer.reward(obs, *args, **kwargs)
