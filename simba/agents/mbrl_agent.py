@@ -104,6 +104,13 @@ class MbrlAgent(BaseAgent):
                 start_states, action_sequences).reshape((5, ground_truth_states.shape[0], ground_truth_states.shape[1]))
             squared_errors.append((predicted_states.mean(axis=0) - ground_truth_states) ** 2)
         self.training_report['mse'] = np.array(squared_errors).sum(axis=(1, 2)).mean(axis=0)
+        ground_truth_states = evaluation_trajectories[0]['observation']
+        action_sequences = np.tile(evaluation_trajectories[0]['action'], (5, 1, 1))
+        start_states = np.tile(ground_truth_states[0, ...], (5, 1))
+        predicted_states = self.model.simulate_trajectories(
+            start_states, action_sequences).reshape((5, ground_truth_states.shape[0], ground_truth_states.shape[1]))
+        self.training_report['predicted_states_vs_ground_truth'] = (predicted_states.mean(axis=0),
+                                                                    ground_truth_states)
         self.training_report.update(dict(
             eval_rl_objective=eval_return_values.mean(),
             sum_rewards_stddev=eval_return_values.std(),
