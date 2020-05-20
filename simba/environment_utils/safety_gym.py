@@ -41,8 +41,6 @@ class SafetyGymStateScorer(object):
     def __init__(self, config, sensor_offset_table):
         for key, value in config.items():
             setattr(self, key, value)
-        self.last_dist_box = 1e3
-        self.last_box_goal = 1e3
         self.last_box_observed = False
         self.sensor_offset_table = sensor_offset_table
 
@@ -50,7 +48,7 @@ class SafetyGymStateScorer(object):
         if self.task == 'goal':
             pass
         elif self.task == 'push':
-            self.last_box_goal, self.last_dist_box = self.push_distance_metric(observation)
+            pass
 
     def reward(self, observations, next_observations):
         reward = tf.zeros((observations.shape[0],))
@@ -64,18 +62,19 @@ class SafetyGymStateScorer(object):
                       tf.cast(dones, tf.float32) * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
-            box_observed = np.any(
-                observations[:, self.sensor_offset_table['box_lidar']] > 0.0, axis=1)
-            rewards_gate = np.logical_and(box_observed, self.last_box_observed)
+            box_observed = tf.math.reduce_any(
+                tf.greater(observations[:, self.sensor_offset_table['box_lidar']], 0.0), axis=1)
+            next_box_observed = tf.math.reduce_any(
+                tf.greater(next_observations[:, self.sensor_offset_table['box_lidar']], 0.0), axis=1)
+            rewards_gate = tf.logical_and(box_observed, next_box_observed)
             dist_box_goal, dist_box = self.push_distance_metric(observations)
-            dones = np.less_equal(dist_box_goal, self.goal_size)
-            reward += ((self.last_box_goal - dist_box_goal) * self.reward_box_goal +
-                       dones * self.reward_goal) * rewards_gate
-            self.last_box_goal = dist_box_goal
-            gate_dist_box_reward = np.greater(self.last_dist_box, self.box_null_dist * self.box_size)
-            reward += ((self.last_dist_box - dist_box) * self.reward_box_dist * gate_dist_box_reward) * rewards_gate
-            self.last_dist_box = dist_box
-            self.last_box_observed = box_observed
+            next_dist_box_goal, next_dist_box = self.push_distance_metric(next_observations)
+            dones = tf.less_equal(dist_box_goal, self.goal_size)
+            reward += ((dist_box_goal - next_dist_box_goal) * self.reward_box_goal +
+                       tf.cast(dones, tf.float32) * self.reward_goal) * tf.cast(rewards_gate, tf.float32)
+            gate_dist_box_reward = tf.greater(dist_box, self.box_null_dist * self.box_size)
+            reward += ((dist_box - next_dist_box) * self.reward_box_dist *
+                       tf.cast(gate_dist_box_reward, tf.float32)) * tf.cast(rewards_gate, tf.float32)
         # Intrinsic reward for uprightness
         if self.reward_orientation:
             accelerometer = observations[:, self.sensor_offset_table['acceleration']]
