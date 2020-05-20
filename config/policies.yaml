@@ -7,6 +7,7 @@ policies:
     n_samples: 150
     n_elite: 30
     particles: 5
+    stddev_threshold: 0.25
   mppi_mpc:
     horizon: 10
     objective: TODOYARDEN
