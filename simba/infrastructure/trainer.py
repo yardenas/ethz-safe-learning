@@ -57,12 +57,12 @@ class RLTrainer(object):
             sum_rewards_stddev=train_return_values.std()
         ))
         losses = report.pop('losses')
-        for i, loss in enumerate(losses):
-            self.training_logger.log_scalars(
-                scalar_dict={'loss': loss},
-                group_name='losses/' + str(epoch),
-                step=i,
-            )
+        # for i, loss in enumerate(losses):
+        #     self.training_logger.log_scalars(
+        #         scalar_dict={'loss': loss},
+        #         group_name='losses/' + str(epoch),
+        #         step=i,
+        #     )
         predicted_trajectory, ground_truth_trajectory = report.pop('predicted_states_vs_ground_truth')
         mse = np.mean((predicted_trajectory - ground_truth_trajectory) ** 2)
         report['states_prediction_mse'] = mse
