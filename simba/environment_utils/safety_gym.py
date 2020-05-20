@@ -24,11 +24,18 @@ class MbrlSafetyGym(MbrlEnv):
     def get_reward(self, obs, acs, *args, **kwargs):
         return self._scorer.reward(obs, *args, **kwargs)
 
-    def step(self, action):
-        observation, reward, done, info = self.env.step(action)
+    def fix_observation(self, observation):
         # Predicting distances in exponential-space seems to really hold back the model from learning anything.
         observation[self.sensor_offset_table['goal_dist']] = -np.log(observation[self.sensor_offset_table['goal_dist']])
-        return observation, reward, done, info
+        return observation
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+        return self.fix_observation(observation), reward, done, info
+
+    def reset(self, **kwargs):
+        observation = self.env.reset()
+        return self.fix_observation(observation)
 
 
 class SafetyGymStateScorer(object):
@@ -46,7 +53,9 @@ class SafetyGymStateScorer(object):
             dist_goal = self.goal_distance_metric(observations)
             next_dist_goal = self.goal_distance_metric(next_observations)
             dones = tf.less_equal(dist_goal, self.goal_size)
-            reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(dones, tf.float32) * self.reward_goal
+            # reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(dones, tf.float32) *
+            # self.reward_goal
+            reward += -dist_goal + tf.cast(dones, tf.float32) * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
             box_observed = tf.math.reduce_any(
@@ -65,8 +74,8 @@ class SafetyGymStateScorer(object):
         # Intrinsic reward for uprightness
         if self.reward_orientation:
             accelerometer = observations[:, self.sensor_offset_table['acceleration']]
-            zalign = (accelerometer / np.linalg.norm(accelerometer, axis=1, keepdims=True))
-            reward += self.reward_orientation_scale * zalign.dot([0.0, 0.0, 1.0])
+            zalign = (accelerometer / tf.linalg.norm(accelerometer, axis=1, keepdims=True))
+            reward += self.reward_orientation_scale * tf.linalg.tensordot(zalign, ([0.0, 0.0, 1.0]))
         # Clip reward
         if self.reward_clip:
             reward = tf.clip_by_value(reward, -self.reward_clip, self.reward_clip)
