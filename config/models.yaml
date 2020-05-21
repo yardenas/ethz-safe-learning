@@ -2,7 +2,7 @@ models:
   mlp_ensemble:
     ensemble_size: 5
     n_epochs: 75
-    batch_size: 64
+    batch_size: 128
     validation_split: 0.1
     learning_rate: 0.001
     mlp_params:
