@@ -38,7 +38,6 @@ class TransitionModel(BaseModel):
             (next_observations - observations).astype(np.float32))
 
     def _fit_statistics(self, inputs):
-        pass
         if not self.scale_features:
             pass
         high = np.concatenate([self.observation_space.high, self.action_space.high])
