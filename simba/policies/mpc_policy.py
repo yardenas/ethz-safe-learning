@@ -64,7 +64,7 @@ class MpcPolicy(PolicyBase):
         return tf.reduce_mean(rewards_per_sample, axis=0)
 
     def pets_with_exploration_bonus(self, cumulative_rewards):
-        rewards_per_sample_per_net = cumulative_rewards.reshape((5, -1, self.n_samples))
-        particle_mean = rewards_per_sample_per_net.mean(axis=1)
-        epistemic = particle_mean.std(axis=0)
+        rewards_per_sample_per_net = tf.reshape(cumulative_rewards, (5, -1, self.n_samples))
+        particle_mean = tf.reduce_mean(rewards_per_sample_per_net, axis=1)
+        epistemic = tf.math.reduce_std(particle_mean, axis=0)
         return self.pets_objective(cumulative_rewards) + epistemic

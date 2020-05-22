@@ -34,8 +34,14 @@ class TransitionModel(BaseModel):
         observations = inputs[:, :self.observation_space_dim]
         next_observations = targets
         return self.model.fit(
-            self.scale_inputs(tf.constant(inputs, dtype=tf.float32)).numpy(),
-            (next_observations - observations).astype(np.float32))
+            self.scale(tf.constant(inputs, dtype=tf.float32)).numpy(),
+            (self.scale(tf.constant(next_observations),
+                        self.inputs_min[:self.observation_space_dim],
+                        self.inputs_max[:self.observation_space_dim]) -
+             self.scale(tf.constant(observations),
+                        self.inputs_min[:self.observation_space_dim],
+                        self.inputs_max[:self.observation_space_dim])
+             ).numpy().astype(np.float32))
 
     def _fit_statistics(self, inputs):
         if not self.scale_features:
@@ -62,28 +68,41 @@ class TransitionModel(BaseModel):
     @tf.function
     def unfold_sequences(self, s_0, action_sequences):
         horizon = action_sequences.shape[1]
-        trajectories = tf.TensorArray(tf.float32, size=horizon)
-        s_t = s_0
+        trajectories = tf.TensorArray(tf.float32, size=horizon + 1)
+        s_t_scaled = self.scale(s_0, self.inputs_min[:self.observation_space_dim],
+                                self.inputs_max[:self.observation_space_dim])
+        actions_scaled = self.scale(action_sequences, self.inputs_min[-self.action_space_dim:],
+                                    self.inputs_max[-self.action_space_dim:])
         for t in tf.range(horizon):
-            trajectories = trajectories.write(t, s_t)
-            a_t = action_sequences[:, t, ...]
-            s_t_a_t_normalized = self.scale_inputs(tf.concat([s_t, a_t], axis=1))
+            trajectories = trajectories.write(t, s_t_scaled)
+            a_t_scaled = actions_scaled[:, t, ...]
+            s_t_a_t_scaled = tf.concat([s_t_scaled, a_t_scaled], axis=1)
             # The model predicts s_t_1 - s_t hence we add here the previous state.
-            mus, sigmas, d_s_t = self.model(s_t_a_t_normalized)
-            s_t += mus
+            mus, sigmas, d_s_t = self.model(s_t_a_t_scaled)
+            s_t_scaled += mus
             # s_t += d_s_t
-        trajectories.write(horizon + 1, s_t)
-        return tf.transpose(trajectories.stack(), [1, 0, 2])
+        trajectories = trajectories.write(horizon, s_t_scaled)
+        return self.unscale(tf.transpose(trajectories.stack(), [1, 0, 2]),
+                            self.inputs_min[:self.observation_space_dim],
+                            self.inputs_max[:self.observation_space_dim])
 
-    @tf.function(
-        input_signature=[tf.TensorSpec(shape=None, dtype=tf.float32)]
-    )
-    def scale_inputs(self, inputs):
+    def scale(self, inputs, low=None, high=None):
         if not self.scale_features:
             return inputs
-        delta = self.inputs_max - self.inputs_min
-        delta = tf.where(tf.less(delta, 1e-5), 1.01, delta)
-        return (inputs - self.inputs_min) / delta
+        low = self.inputs_min if low is None else low
+        high = self.inputs_max if high is None else high
+        delta = high - low
+        delta = tf.where(tf.less(delta, 1e-5), high + 1e-5, delta)
+        return (inputs - low) / delta
+
+    def unscale(self, inputs, low=None, high=None):
+        if not self.scale_features:
+            return inputs
+        low = self.inputs_min if low is None else low
+        high = self.inputs_max if high is None else high
+        delta = high - low
+        delta = tf.where(tf.less(delta, 1e-5), high + 1e-5, delta)
+        return inputs * delta + low
 
     def save(self):
         pass
