@@ -118,9 +118,8 @@ class BaseAgent(object):
                 steps += 1
                 next_observations.append(observation)
                 rewards.append(reward)
-                rollout_done = int((steps == max_trajectory_length)
-                                   or done)
-                terminals.append(rollout_done)
+                rollout_done = (steps == max_trajectory_length) or done
+                terminals.append(done)
                 pbar.update(1)
                 if rollout_done:
                     break
