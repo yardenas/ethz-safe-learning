@@ -137,3 +137,5 @@ class MbrlAgent(BaseAgent):
                 predicted_states = predicted_states[:, :-1, :]
                 squared_errors.append((predicted_states.mean(axis=0) - states_split) ** 2)
         self.training_report['mse'] = np.array(squared_errors).mean(axis=(0, 1, 2))
+        self.training_report['predicted_states_vs_ground_truth'] = (predicted_states.mean(axis=0),
+                                                                    states_split)

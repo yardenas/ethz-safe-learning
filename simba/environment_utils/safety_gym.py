@@ -27,6 +27,7 @@ class MbrlSafetyGym(MbrlEnv):
     def fix_observation(self, observation):
         # Predicting distances in exponential-space seems to really hold back the model from learning anything.
         observation[self.sensor_offset_table['goal_dist']] = -np.log(observation[self.sensor_offset_table['goal_dist']])
+        observation[self.sensor_offset_table['accelerometer']][2] += np.random.normal(loc=0, scale=0.1)
         return observation
 
     def step(self, action):
