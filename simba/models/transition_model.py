@@ -23,8 +23,8 @@ class TransitionModel(BaseModel):
         self.scale_features = scale_features
         self.observation_space_dim = observation_space.shape[0]
         self.action_space_dim = action_space.shape[0]
-        self.inputs_min = tf.concat([observation_space.low, action_space.low], axis=0)
-        self.inputs_max = tf.concat([observation_space.high, action_space.high], axis=0)
+        self.inputs_mean = tf.zeros((self.inputs_dim,))
+        self.inputs_stddev = tf.ones_like(self.inputs_mean)
 
     def build(self):
         self.model.build()
@@ -35,23 +35,16 @@ class TransitionModel(BaseModel):
         next_observations = targets
         return self.model.fit(
             self.scale(tf.constant(inputs, dtype=tf.float32)).numpy(),
-            (self.scale(tf.constant(next_observations),
-                        self.inputs_min[:self.observation_space_dim],
-                        self.inputs_max[:self.observation_space_dim]) -
-             self.scale(tf.constant(observations),
-                        self.inputs_min[:self.observation_space_dim],
-                        self.inputs_max[:self.observation_space_dim])
-             ).numpy().astype(np.float32))
+            next_observations - observations).astype(np.float32)
 
     def _fit_statistics(self, inputs):
         if not self.scale_features:
             pass
-        high = np.concatenate([self.observation_space.high, self.action_space.high])
-        low = np.concatenate([self.observation_space.low, self.action_space.low])
-        self.inputs_min = tf.constant(
-            np.where(np.isfinite(low), low, inputs.min(axis=0)), dtype=tf.float32)
-        self.inputs_max = tf.constant(
-            np.where(np.isfinite(high), high, inputs.max(axis=0)), dtype=tf.float32)
+        self.inputs_mean = tf.constant(np.mean(inputs, axis=0))
+        stddev = np.std(inputs, axis=0)
+        self.inputs_stddev = tf.constant(
+            np.where(np.less(stddev, 1e-5), stddev + 1.0, stddev)
+        )
 
     def predict(self, inputs):
         return self.simulate_trajectories(
@@ -69,40 +62,22 @@ class TransitionModel(BaseModel):
     def unfold_sequences(self, s_0, action_sequences):
         horizon = action_sequences.shape[1]
         trajectories = tf.TensorArray(tf.float32, size=horizon + 1)
-        s_t_scaled = self.scale(s_0, self.inputs_min[:self.observation_space_dim],
-                                self.inputs_max[:self.observation_space_dim])
-        actions_scaled = self.scale(action_sequences, self.inputs_min[-self.action_space_dim:],
-                                    self.inputs_max[-self.action_space_dim:])
+        s_t = s_0
         for t in tf.range(horizon):
-            trajectories = trajectories.write(t, s_t_scaled)
-            a_t_scaled = actions_scaled[:, t, ...]
-            s_t_a_t_scaled = tf.concat([s_t_scaled, a_t_scaled], axis=1)
+            trajectories = trajectories.write(t, s_t)
+            a_t = action_sequences[:, t, ...]
+            s_t_a_t_scaled = self.scale(tf.concat([s_t, a_t], axis=1))
             # The model predicts s_t_1 - s_t hence we add here the previous state.
             mus, sigmas, d_s_t = self.model(s_t_a_t_scaled)
-            s_t_scaled += mus
+            s_t += mus
             # s_t += d_s_t
-        trajectories = trajectories.write(horizon, s_t_scaled)
-        return self.unscale(tf.transpose(trajectories.stack(), [1, 0, 2]),
-                            self.inputs_min[:self.observation_space_dim],
-                            self.inputs_max[:self.observation_space_dim])
+        trajectories = trajectories.write(horizon, s_t)
+        return tf.transpose(trajectories.stack(), [1, 0, 2])
 
-    def scale(self, inputs, low=None, high=None):
+    def scale(self, inputs):
         if not self.scale_features:
             return inputs
-        low = self.inputs_min if low is None else low
-        high = self.inputs_max if high is None else high
-        delta = high - low
-        delta = tf.where(tf.less(delta, 1e-5), high + 1e-5, delta)
-        return (inputs - low) / delta
-
-    def unscale(self, inputs, low=None, high=None):
-        if not self.scale_features:
-            return inputs
-        low = self.inputs_min if low is None else low
-        high = self.inputs_max if high is None else high
-        delta = high - low
-        delta = tf.where(tf.less(delta, 1e-5), high + 1e-5, delta)
-        return inputs * delta + low
+        return (inputs - self.inputs_mean) / self.inputs_stddev
 
     def save(self):
         pass

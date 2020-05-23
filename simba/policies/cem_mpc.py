@@ -52,7 +52,7 @@ class CemMpc(MpcPolicy):
             trajectories = self.model.unfold_sequences(
                 tf.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch
             )
-            tf.debugging.assert_all_finite(trajectories, "Not all trajectory values were finite.")
+            tf.debugging.assert_less(trajectories, 1e3, "Not all trajectory values were finite.")
             cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batch)
             scores = self.objective(cumulative_rewards)
             elite_scores, elite = tf.nn.top_k(scores, self.elite, sorted=False)
