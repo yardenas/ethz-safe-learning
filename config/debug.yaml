@@ -8,7 +8,7 @@ options:
     training_logger_params:
       fps: 28
   seed: 1
-  train_iterations: 25
+  train_iterations: 100
   agent: mbrl_agent
   environment: MbrlSafexp-PointGoal0-v0
 
