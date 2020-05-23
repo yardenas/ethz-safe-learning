@@ -63,9 +63,8 @@ class GaussianDistMlp(tf.keras.Model):
 
 @tf.function
 def negative_log_likelihood(y_true, mu, var):
-    return 0.5 * tf.reduce_mean(tf.math.squared_difference(y_true, mu))
-    # return 0.5 * tf.reduce_mean(tf.math.log(2.0 * np.pi * var)) + \
-    #        0.5 * tf.reduce_mean(tf.math.divide(tf.square(mu - y_true), var))
+    return 0.5 * tf.reduce_mean(tf.math.log(2.0 * np.pi * var)) + \
+           0.5 * tf.reduce_mean(tf.math.divide(tf.square(mu - y_true), var))
 
 
 class MlpEnsemble(tf.Module):

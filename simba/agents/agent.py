@@ -113,13 +113,15 @@ class BaseAgent(object):
             for _ in range(self.action_repeat):
                 observations.append(observation)
                 actions.append(action)
-                observation, reward, done, _ = \
+                observation, reward, done, info = \
                     environment.step(action)
                 steps += 1
                 next_observations.append(observation)
                 rewards.append(reward)
                 rollout_done = (steps == max_trajectory_length) or done
                 terminals.append(rollout_done)
+                if info.get('goal_met', False):
+                    [data.pop() for data in [observations, actions, next_observations, rewards, terminals]]
                 pbar.update(1)
                 if rollout_done:
                     break
