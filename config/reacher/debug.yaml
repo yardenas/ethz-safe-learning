@@ -1,0 +1,15 @@
+options:
+  trainer_options:
+    video_log_frequency: 5
+    log_frequency: 1
+    max_video_length: 150
+    eval_interaction_steps: 100
+    eval_episode_length: 10
+    training_logger_params:
+      fps: 28
+  seed: 1
+  train_iterations: 5
+  agent: mbrl_agent
+  environment: MbrlReacher7DOF
+
+

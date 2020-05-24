@@ -90,7 +90,7 @@ class MlpEnsemble(tf.Module):
                          for _ in range(self.ensemble_size)]
         self.optimizer = tf.keras.optimizers.Adam(self.learning_rate,
                                                   clipvalue=1.0)
-                                                  # epsilon=1e-5)
+        # epsilon=1e-5)
 
     def build(self):
         pass
@@ -109,36 +109,54 @@ class MlpEnsemble(tf.Module):
 
     @tf.function
     def training_step(self, inputs, targets):
-        losses = []
+        loss = 0.0
         for i, mlp in enumerate(self.ensemble):
             with tf.GradientTape() as tape:
                 mu, var = mlp(inputs[i, ...], training=tf.constant(True))
-                loss = negative_log_likelihood(targets[i, ...], mu, var)
-                losses.append(loss)
+                loss += negative_log_likelihood(targets[i, ...], mu, var) / self.ensemble_size
                 grads = tape.gradient(loss, mlp.trainable_variables)
                 self.optimizer.apply_gradients(zip(grads, mlp.trainable_variables))
-        return losses
+        return loss
+
+    @tf.function(
+        input_signature=[tf.TensorSpec(shape=None, dtype=tf.float32)] * 2
+    )
+    def validation_step(self, inputs, targets):
+        loss = 0.0
+        for i, mlp in enumerate(self.ensemble):
+            mu, var = mlp(inputs, training=tf.constant(False))
+            loss += negative_log_likelihood(targets, mu, var) / self.ensemble_size
+        return loss
+
+    def split_train_validate(self, inputs, targets):
+        indices = np.random.permutation(inputs.shape[0])
+        num_val = int(inputs.shape[0] * self.validation_split)
+        train_idx, val_idx = indices[num_val:], indices[:num_val]
+        return inputs[train_idx, ...], targets[train_idx, ...], inputs[val_idx, ...], targets[val_idx, ...]
 
     def fit(self, inputs, targets):
         assert inputs.shape[0] == targets.shape[0], "Inputs batch size ({}) "
         "doesn't match targets batch size ({})".format(inputs.shape[0], targets.shape[0])
         assert np.isfinite(inputs).all() and np.isfinite(targets).all(), "Training data is not finite."
-        losses = np.empty((self.n_epochs, self.ensemble_size))
-        n_batches = int(np.ceil(inputs.shape[0] / self.batch_size))
+        losses = np.empty((self.n_epochs,))
+        train_inputs, train_targets, validate_inputs, validate_targets = self.split_train_validate(inputs, targets)
+        n_batches = int(np.ceil(train_inputs.shape[0] / self.batch_size))
         for epoch in range(self.n_epochs):
             avg_loss = 0.0
-            shuffles_per_mlp = np.array([np.random.permutation(inputs.shape[0])
+            shuffles_per_mlp = np.array([np.random.permutation(train_inputs.shape[0])
                                          for _ in range(self.ensemble_size)])
-            x_batches = np.array_split(inputs[shuffles_per_mlp], n_batches, axis=1)
-            y_batches = np.array_split(targets[shuffles_per_mlp], n_batches, axis=1)
+            x_batches = np.array_split(train_inputs[shuffles_per_mlp], n_batches, axis=1)
+            y_batches = np.array_split(train_targets[shuffles_per_mlp], n_batches, axis=1)
             for x_batch, y_batch in zip(x_batches, y_batches):
-                loss_per_mlp = self.training_step(tf.constant(x_batch),
-                                                  tf.constant(y_batch))
-                avg_loss += np.array(loss_per_mlp) / n_batches
+                batch_loss = self.training_step(tf.constant(x_batch),
+                                                tf.constant(y_batch))
+                avg_loss += batch_loss / n_batches
             if epoch % 20 == 0:
-                logger.debug('Epoch {} | Losses {}'.format(epoch, avg_loss))
+                validation_loss = self.validation_step(validate_inputs, validate_targets).numpy()
+                logger.debug(
+                    "Epoch {} | Training Loss {} | Validation Loss {}".format(epoch, avg_loss, validation_loss))
             losses[epoch] = avg_loss
-        return losses.mean(axis=1)
+        return losses
 
     @tf.function
     def __call__(self, inputs, *args, **kwargs):

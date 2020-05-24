@@ -120,7 +120,7 @@ def add_noise(data, noise_to_signal=0.01):
     mean_data = np.mean(data, axis=0)
     mean_data[mean_data == 0] = 1e-5
     std_of_noise = np.abs(mean_data * noise_to_signal)
-    return data + np.random.normal(0.0, std_of_noise, data.shape)
+    return (data + np.random.normal(0.0, std_of_noise, data.shape)).astype(np.float32)
 
 
 def path_length(path):

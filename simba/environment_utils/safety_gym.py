@@ -27,6 +27,10 @@ class MbrlSafetyGym(MbrlEnv):
     def fix_observation(self, observation):
         # Predicting distances in exponential-space seems to really hold back the model from learning anything.
         observation[self.sensor_offset_table['goal_dist']] = -np.log(observation[self.sensor_offset_table['goal_dist']])
+        observation[self.sensor_offset_table['accelerometer']][2] += np.random.normal(loc=0, scale=0.01)
+        # observation[self.sensor_offset_table['gyro']][:2] += np.random.normal(loc=0, scale=0.1)
+        # observation[self.sensor_offset_table['velocimeter']][2] += np.random.normal(loc=0, scale=0.1)
+        # observation[self.sensor_offset_table['magnetometer']][2] += np.random.normal(loc=0, scale=0.1)
         return observation
 
     def step(self, action):
@@ -47,13 +51,12 @@ class SafetyGymStateScorer(object):
 
     def reward(self, observations, next_observations):
         reward = tf.zeros((observations.shape[0],))
-        dones = tf.zeros_like(reward, dtype=tf.bool)
         # Distance from robot to goal
         if self.task == 'goal':
             dist_goal = self.goal_distance_metric(observations)
             next_dist_goal = self.goal_distance_metric(next_observations)
-            dones = tf.less_equal(dist_goal, self.goal_size)
-            reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(dones, tf.float32) * self.reward_goal
+            goal_achieved = tf.less_equal(dist_goal, self.goal_size)
+            reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(goal_achieved, tf.float32) * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
             box_observed = tf.math.reduce_any(
@@ -63,9 +66,9 @@ class SafetyGymStateScorer(object):
             rewards_gate = tf.logical_and(box_observed, next_box_observed)
             dist_box_goal, dist_box = self.push_distance_metric(observations)
             next_dist_box_goal, next_dist_box = self.push_distance_metric(next_observations)
-            dones = tf.less_equal(dist_box_goal, self.goal_size)
+            goal_achieved = tf.less_equal(dist_box_goal, self.goal_size)
             reward += ((dist_box_goal - next_dist_box_goal) * self.reward_box_goal +
-                       tf.cast(dones, tf.float32) * self.reward_goal) * tf.cast(rewards_gate, tf.float32)
+                       tf.cast(goal_achieved, tf.float32) * self.reward_goal) * tf.cast(rewards_gate, tf.float32)
             gate_dist_box_reward = tf.greater(dist_box, self.box_null_dist * self.box_size)
             reward += ((dist_box - next_dist_box) * self.reward_box_dist *
                        tf.cast(gate_dist_box_reward, tf.float32)) * tf.cast(rewards_gate, tf.float32)
@@ -77,7 +80,7 @@ class SafetyGymStateScorer(object):
         # Clip reward
         if self.reward_clip:
             reward = tf.clip_by_value(reward, -self.reward_clip, self.reward_clip)
-        return reward, dones
+        return reward, tf.zeros_like(reward, dtype=tf.bool)
 
     def cost(self, observations):
         """ Calculate the current costs and return a dict

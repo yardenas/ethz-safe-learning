@@ -14,7 +14,8 @@ class CemMpc(MpcPolicy):
                  smoothing,
                  n_samples,
                  n_elite,
-                 particles):
+                 particles,
+                 stddev_threshold):
         super().__init__(
             model,
             environment,
@@ -26,6 +27,7 @@ class CemMpc(MpcPolicy):
         self.iterations = iterations
         self.smoothing = smoothing
         self.elite = n_elite
+        self.stddev_threshold = stddev_threshold
 
     def generate_action(self, state):
         return self.do_generate_action(tf.constant(state, dtype=tf.float32)).numpy()
@@ -50,17 +52,19 @@ class CemMpc(MpcPolicy):
             trajectories = self.model.unfold_sequences(
                 tf.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch
             )
+            tf.debugging.assert_less(trajectories, 1e3, "Not all trajectory values were finite.")
             cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batch)
             scores = self.objective(cumulative_rewards)
             elite_scores, elite = tf.nn.top_k(scores, self.elite, sorted=False)
             best_of_elite = tf.argmax(elite_scores)
             if tf.greater(elite_scores[best_of_elite], best_so_far_score):
                 best_so_far = action_sequences[elite[best_of_elite], 0, ...]
+                best_so_far_score = elite_scores[best_of_elite]
             elite_actions = tf.gather(action_sequences, elite, axis=0)
             mean, variance = tf.nn.moments(elite_actions, axes=0)
             stddev = tf.sqrt(variance)
             mu = self.smoothing * mu + (1.0 - self.smoothing) * mean
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * stddev
-            if tf.less_equal(tf.reduce_mean(sigma), 0.25):
+            if tf.less_equal(tf.reduce_mean(sigma), self.stddev_threshold):
                 break
-        return best_so_far
+        return best_so_far + tf.random.normal(best_so_far.shape, stddev=0.05)

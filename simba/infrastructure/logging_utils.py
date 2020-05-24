@@ -57,6 +57,9 @@ class TrainingLogger:
         """figure: matplotlib.pyplot figure handle"""
         self._summ_writer.add_graph(graph)
 
+    def log_histogram(self, data, name, step):
+        self._summ_writer.add_histogram(name, data, step)
+
     def dump_scalars(self, log_path=None):
         log_path = os.path.join(self._log_dir, "scalar_data.json") if log_path is None else log_path
         self._summ_writer.export_scalars_to_json(log_path)

@@ -69,12 +69,18 @@ class BaseAgent(object):
         observation = environment.reset()
         images = []
         logger.info("Sampling render trajectory.")
-        for _ in tqdm(range(max_trajectory_length)):
-            images.append(environment.render(mode='rgb_array'))
+        steps = 0
+        pbar = tqdm(total=max_trajectory_length)
+        while steps < max_trajectory_length:
             action = policy.generate_action(observation)
-            observation, _, done, _ = environment.step(action)
-            if done:
-                break
+            for _ in range(self.action_repeat):
+                images.append(environment.render(mode='rgb_array'))
+                observation, _, done, _ = environment.step(action)
+                steps += 1
+                pbar.update(1)
+                if done or steps == max_trajectory_length:
+                    break
+        pbar.close()
         return images
 
     def sample_trajectories(
@@ -87,12 +93,13 @@ class BaseAgent(object):
         trajectories = []
         pbar = tqdm(total=batch_size)
         while timesteps_this_batch < batch_size:
-            trajectories.append(self.sample_trajectory(
+            trajectory, trajectory_length = self.sample_trajectory(
                 environment,
                 policy,
                 max_trajectory_length,
-                pbar))
-            timesteps_this_batch += rb.path_length(trajectories[-1])
+                pbar)
+            trajectories.append(trajectory)
+            timesteps_this_batch += trajectory_length
         pbar.close()
         return trajectories, timesteps_this_batch
 
@@ -113,14 +120,17 @@ class BaseAgent(object):
             for _ in range(self.action_repeat):
                 observations.append(observation)
                 actions.append(action)
-                observation, reward, done, _ = \
+                observation, reward, done, info = \
                     environment.step(action)
                 steps += 1
                 next_observations.append(observation)
                 rewards.append(reward)
-                rollout_done = int((steps == max_trajectory_length)
-                                   or done)
+                rollout_done = (steps == max_trajectory_length) or done
                 terminals.append(rollout_done)
+                if info.get('goal_met', False):
+                    print("hellow")
+                    print(next_observations[-1][5] - observations[-1][5])
+                    [data.pop() for data in [observations, actions, next_observations, rewards, terminals]]
                 pbar.update(1)
                 if rollout_done:
                     break
@@ -133,4 +143,4 @@ class BaseAgent(object):
             rewards,
             next_observations,
             terminals
-        )
+        ), steps
