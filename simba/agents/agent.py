@@ -126,7 +126,7 @@ class BaseAgent(object):
                 next_observations.append(observation)
                 rewards.append(reward)
                 rollout_done = (steps == max_trajectory_length) or done
-                terminals.append(rollout_done)
+                terminals.append(done)
                 if info.get('goal_met', False):
                     print("hellow")
                     print(next_observations[-1][5] - observations[-1][5])
