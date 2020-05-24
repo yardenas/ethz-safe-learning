@@ -36,6 +36,11 @@ def test_dynamically_unrolled(f, *args):
             f.__name__, ', '.join(map(str, args))))
 
 
+def get_git_hash():
+    import subprocess
+    return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+
+
 def dump_string(string, filename):
     with open(filename, 'w+') as file:
         file.write(string)

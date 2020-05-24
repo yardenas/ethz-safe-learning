@@ -67,4 +67,4 @@ class CemMpc(MpcPolicy):
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * stddev
             if tf.less_equal(tf.reduce_mean(sigma), self.stddev_threshold):
                 break
-        return best_so_far
+        return best_so_far + tf.random.normal(best_so_far.shape, stddev=0.05)

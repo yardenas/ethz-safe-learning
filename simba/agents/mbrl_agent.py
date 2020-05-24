@@ -135,7 +135,7 @@ class MbrlAgent(BaseAgent):
                     start_state, action_sequence).reshape(
                     (5, states_split.shape[0] + 1, states_split.shape[1]))
                 predicted_states = predicted_states[:, :-1, :]
-                squared_errors.append((predicted_states.mean(axis=0) - states_split) ** 2)
-        self.training_report['mse'] = np.array(squared_errors).mean(axis=(0, 1, 2))
+                squared_errors.append(((predicted_states.mean(axis=0) - states_split) ** 2).mean(axis=(0, 1)))
+        self.training_report['mse'] = np.array(squared_errors).mean()
         self.training_report['predicted_states_vs_ground_truth'] = (predicted_states.mean(axis=0),
                                                                     states_split)
