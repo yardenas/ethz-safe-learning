@@ -15,7 +15,8 @@ class CemMpc(MpcPolicy):
                  n_samples,
                  n_elite,
                  particles,
-                 stddev_threshold):
+                 stddev_threshold,
+                 noise_stddev):
         super().__init__(
             model,
             environment,
@@ -28,6 +29,7 @@ class CemMpc(MpcPolicy):
         self.smoothing = smoothing
         self.elite = n_elite
         self.stddev_threshold = stddev_threshold
+        self.noise_stddev = noise_stddev
 
     def generate_action(self, state):
         return self.do_generate_action(tf.constant(state, dtype=tf.float32)).numpy()
@@ -67,4 +69,4 @@ class CemMpc(MpcPolicy):
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * stddev
             if tf.less_equal(tf.reduce_mean(sigma), self.stddev_threshold):
                 break
-        return best_so_far + tf.random.normal(best_so_far.shape, stddev=0.05)
+        return best_so_far + tf.random.normal(best_so_far.shape, stddev=self.noise_stddev)
