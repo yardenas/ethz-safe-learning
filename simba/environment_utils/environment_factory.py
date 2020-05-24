@@ -13,5 +13,4 @@ def make_environment(config):
         environment = eval('env_utils.' + environment_name)()
     else:
         environment = gym.make(environment_name)
-    environment.seed(config['options']['seed'])
     return environment

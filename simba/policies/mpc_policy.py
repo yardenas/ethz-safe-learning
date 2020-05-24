@@ -26,8 +26,8 @@ class MpcPolicy(PolicyBase):
         raise NotImplementedError
 
     def compute_cumulative_rewards(self, trajectories, action_sequences):
-        cumulative_rewards = tf.zeros((trajectories.shape[0],))
-        done_trajectories = tf.zeros((trajectories.shape[0]), dtype=bool)
+        cumulative_rewards = tf.zeros((tf.shape(trajectories)[0],))
+        done_trajectories = tf.zeros((tf.shape(trajectories)[0],), dtype=bool)
         horizon = trajectories.shape[1]
         for t in range(horizon - 1):
             s_t = trajectories[:, t, ...]
@@ -51,8 +51,6 @@ class MpcPolicy(PolicyBase):
             lower_bound = self.action_space.low
             upper_bound = self.action_space.high
         else:
-            # For large enough bounds, the truncated normal dist. converges to a standard normal dist.
-            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.truncnorm.html#scipy.stats.truncnorm
             lower_bound = -100
             upper_bound = 100
             mean = 0.0
@@ -61,7 +59,8 @@ class MpcPolicy(PolicyBase):
 
     def pets_objective(self, cumulative_rewards):
         rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
-        return tf.reduce_mean(rewards_per_sample, axis=0)
+        return tf.reduce_mean(
+            rewards_per_sample, axis=0)
 
     def pets_with_exploration_bonus(self, cumulative_rewards):
         rewards_per_sample_per_net = tf.reshape(cumulative_rewards, (5, -1, self.n_samples))

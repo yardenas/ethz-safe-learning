@@ -10,7 +10,6 @@ class BaseAgent(object):
     """
 
     def __init__(self,
-                 seed,
                  replay_buffer_size,
                  add_observation_noise,
                  action_repeat,
@@ -19,12 +18,8 @@ class BaseAgent(object):
                  ):
         self.replay_buffer = rb.ReplayBuffer(replay_buffer_size, add_observation_noise)
         self.action_repeat = action_repeat
-        self.set_random_seeds(seed)
         self.training_report = dict()
         self.total_training_steps = 0
-
-    def set_random_seeds(self, seed):
-        raise NotImplementedError("Random seeds function must be implemented.")
 
     def interact(self, environment):
         samples, timesteps_this_batch = self._interact(environment)
@@ -126,7 +121,7 @@ class BaseAgent(object):
                 next_observations.append(observation)
                 rewards.append(reward)
                 rollout_done = (steps == max_trajectory_length) or done
-                terminals.append(rollout_done)
+                terminals.append(done)
                 if info.get('goal_met', False):
                     print("hellow")
                     print(next_observations[-1][5] - observations[-1][5])

@@ -8,7 +8,7 @@ policies:
     n_elite: 30
     particles: 5
     stddev_threshold: 0.25
-    noise_stddev: 0.05
+    noise_stddev: 0.3
   mppi_mpc:
     horizon: 10
     objective: TODOYARDEN

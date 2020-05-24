@@ -10,7 +10,6 @@ from simba.models.transition_model import TransitionModel
 
 class MbrlAgent(BaseAgent):
     def __init__(self,
-                 seed,
                  environment,
                  warmup_timesteps,
                  train_batch_size,
@@ -20,7 +19,6 @@ class MbrlAgent(BaseAgent):
                  **kwargs
                  ):
         super().__init__(
-            seed,
             replay_buffer_size,
             **kwargs)
         self.observation_space_dim = environment.observation_space.shape[0]
@@ -36,11 +34,6 @@ class MbrlAgent(BaseAgent):
         kwargs['model_params']['scale_features'] = kwargs['scale_features']
         self.model = self._make_model(kwargs.pop('model'), kwargs.pop('model_params'), environment)
         self.policy = self._make_policy(kwargs.pop('policy'), kwargs.pop('policy_params'), environment)
-
-    def set_random_seeds(self, seed):
-        if seed is not None:
-            np.random.seed(seed)
-            tf.random.set_seed(seed)
 
     @property
     def warm(self):
