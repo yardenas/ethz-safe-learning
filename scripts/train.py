@@ -1,5 +1,3 @@
-
-
 def main():
     import os
     import argparse
@@ -7,7 +5,7 @@ def main():
     import time
     from config.config import load_config_or_die, pretty_print
     from simba.infrastructure.logging_utils import init_loggging
-    from simba.infrastructure.common import dump_string
+    from simba.infrastructure.common import dump_string, get_git_hash
     from simba.agents.agent_factory import make_agent
     from simba.environment_utils.environment_factory import make_environment
     from simba.infrastructure.trainer import RLTrainer
@@ -25,7 +23,8 @@ def main():
     params = load_config_or_die(args.config_dir, args.config_basename)
     logging.info("Startning a training session with parameters:\n" +
                  pretty_print(params))
-    dump_string(pretty_print(params), experiment_log_dir + '/params.txt')
+    dump_string(pretty_print(params) + '\n' +
+                'git hash: ' + get_git_hash(), experiment_log_dir + '/params.txt')
     env = make_environment(params)
     agent = make_agent(params, env)
     trainer_options = params['options'].pop('trainer_options')
