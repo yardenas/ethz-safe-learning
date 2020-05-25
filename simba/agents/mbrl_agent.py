@@ -47,7 +47,6 @@ class MbrlAgent(BaseAgent):
         return self.total_warmup_timesteps_so_far >= self.warmup_timesteps
 
     def update(self):
-        # TODO (yarden): not sure about random data, maybe everything, maybe sample N trajectories.
         observations, actions, next_observations, _, _ = \
             self.replay_buffer.sample_recent_data(self.train_batch_size)
         observations_with_actions = np.concatenate([
