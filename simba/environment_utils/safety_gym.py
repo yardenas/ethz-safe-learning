@@ -81,7 +81,7 @@ class SafetyGymStateScorer(object):
         # Clip reward
         if self.reward_clip:
             reward = tf.clip_by_value(reward, -self.reward_clip, self.reward_clip)
-        return reward, goal_achieved
+        return reward, tf.zeros_like(reward, dtype=tf.bool)
 
     def cost(self, observations):
         """ Calculate the current costs and return a dict
