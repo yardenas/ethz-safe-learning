@@ -126,6 +126,7 @@ class BaseAgent(object):
                     print("hellow")
                     print(next_observations[-1][5] - observations[-1][5])
                     [data.pop() for data in [observations, actions, next_observations, rewards, terminals]]
+                    print(next_observations[-1][5] - observations[-1][5])
                 pbar.update(1)
                 if rollout_done:
                     break
