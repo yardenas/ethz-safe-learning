@@ -122,11 +122,11 @@ class MbrlAgent(BaseAgent):
             action_sequences_split = np.array_split(
                 action_sequences, action_sequences.shape[0] // self.policy.horizon, axis=0)
             for (states_split, actions_split) in zip(ground_truth_states_split, action_sequences_split):
-                start_state = np.tile(states_split[0, ...], (5, 1))
-                action_sequence = np.tile(actions_split, (5, 1, 1))
+                start_state = np.tile(states_split[0, ...], (self.policy.particles, 1))
+                action_sequence = np.tile(actions_split, (self.policy.particles, 1, 1))
                 predicted_states = self.model.simulate_trajectories(
                     start_state, action_sequence).reshape(
-                    (5, states_split.shape[0] + 1, states_split.shape[1]))
+                    (self.policy.particles, states_split.shape[0] + 1, states_split.shape[1]))
                 predicted_states = predicted_states[:, :-1, :]
                 squared_errors.append(((predicted_states.mean(axis=0) - states_split) ** 2).mean(axis=(0, 1)))
         self.training_report['mse'] = np.array(squared_errors).mean()

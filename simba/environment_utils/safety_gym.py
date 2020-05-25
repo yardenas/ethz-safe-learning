@@ -56,7 +56,7 @@ class SafetyGymStateScorer(object):
         if self.task == 'goal':
             dist_goal = self.goal_distance_metric(observations)
             next_dist_goal = self.goal_distance_metric(next_observations)
-            goal_achieved = tf.less_equal(dist_goal, self.goal_size / 2.0)
+            goal_achieved = tf.less_equal(dist_goal, self.goal_size / 3.0)
             reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(goal_achieved, tf.float32) * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
