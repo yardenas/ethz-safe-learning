@@ -27,7 +27,7 @@ class MbrlSafetyGym(MbrlEnv):
     def fix_observation(self, observation):
         # Predicting distances in exponential-space seems to really hold back the model from learning anything.
         observation[self.sensor_offset_table['goal_dist']] = -np.log(observation[self.sensor_offset_table['goal_dist']])
-        observation[self.sensor_offset_table['accelerometer']][2] += np.random.normal(loc=0, scale=0.01)
+        # observation[self.sensor_offset_table['accelerometer']][2] += np.random.normal(loc=0, scale=0.01)
         # observation[self.sensor_offset_table['gyro']][:2] += np.random.normal(loc=0, scale=0.1)
         # observation[self.sensor_offset_table['velocimeter']][2] += np.random.normal(loc=0, scale=0.1)
         # observation[self.sensor_offset_table['magnetometer']][2] += np.random.normal(loc=0, scale=0.1)
@@ -81,7 +81,7 @@ class SafetyGymStateScorer(object):
         # Clip reward
         if self.reward_clip:
             reward = tf.clip_by_value(reward, -self.reward_clip, self.reward_clip)
-        return reward, tf.zeros_like(reward, dtype=tf.bool)
+        return reward, goal_achieved
 
     def cost(self, observations):
         """ Calculate the current costs and return a dict
