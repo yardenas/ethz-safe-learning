@@ -61,7 +61,7 @@ class CemMpc(MpcPolicy):
             elite_scores, elite = tf.nn.top_k(scores, self.elite, sorted=False)
             best_of_elite = tf.argmax(elite_scores)
             if tf.greater(elite_scores[best_of_elite], best_so_far_score):
-                best_so_far = action_sequences[elite[best_of_elite], 0, ...]
+                best_so_far = action_sequences[elite[best_of_elite], ...]
                 best_so_far_score = elite_scores[best_of_elite]
             elite_actions = tf.gather(action_sequences, elite, axis=0)
             mean, variance = tf.nn.moments(elite_actions, axes=0)

@@ -67,10 +67,10 @@ class BaseAgent(object):
         steps = 0
         pbar = tqdm(total=max_trajectory_length)
         while steps < max_trajectory_length:
-            action = policy.generate_action(observation)
-            for _ in range(self.action_repeat):
+            action_sequence = policy.generate_action(observation)
+            for i in range(min(self.action_repeat, action_sequence.shape[0])):
                 images.append(environment.render(mode='rgb_array'))
-                observation, _, done, _ = environment.step(action)
+                observation, _, done, _ = environment.step(action_sequence[i])
                 steps += 1
                 pbar.update(1)
                 if done or steps == max_trajectory_length:
@@ -111,12 +111,12 @@ class BaseAgent(object):
         steps = 0
         rollout_done = False
         while not rollout_done:
-            action = policy.generate_action(observation)
-            for _ in range(self.action_repeat):
+            action_sequence = policy.generate_action(observation)
+            for i in range(min(self.action_repeat, action_sequence.shape[0])):
                 observations.append(observation)
-                actions.append(action)
+                actions.append(action_sequence[i])
                 observation, reward, done, info = \
-                    environment.step(action)
+                    environment.step(action_sequence[i])
                 steps += 1
                 next_observations.append(observation)
                 rewards.append(reward)
