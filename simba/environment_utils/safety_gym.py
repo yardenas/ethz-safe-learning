@@ -56,7 +56,7 @@ class SafetyGymStateScorer(object):
         if self.task == 'goal':
             dist_goal = self.goal_distance_metric(observations)
             next_dist_goal = self.goal_distance_metric(next_observations)
-            goal_achieved = tf.less_equal(dist_goal, self.goal_size / 3.0)
+            goal_achieved = tf.less_equal(dist_goal, self.goal_size - 0.1)
             reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(goal_achieved, tf.float32) * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
@@ -81,7 +81,7 @@ class SafetyGymStateScorer(object):
         # Clip reward
         if self.reward_clip:
             reward = tf.clip_by_value(reward, -self.reward_clip, self.reward_clip)
-        return reward, tf.zeros_like(reward, dtype=tf.bool)
+        return reward, goal_achieved
 
     def cost(self, observations):
         """ Calculate the current costs and return a dict

@@ -4,7 +4,7 @@ models:
     batch_size: 512
     validation_split: 0.2
     learning_rate: 0.001
-    training_steps: 500
+    training_steps: 1250
     mlp_params:
       n_layers: 2
       units: 250
