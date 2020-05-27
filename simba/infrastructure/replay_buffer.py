@@ -98,7 +98,8 @@ def concatenate_rollouts(paths):
     next_observations = np.concatenate([path["next_observation"] for path in paths])
     terminals = np.concatenate([path["terminal"] for path in paths])
     concatenated_rewards = np.concatenate([path["reward"] for path in paths])
-    return observations, actions, next_observations, terminals, concatenated_rewards
+    concatenated_infos = np.concatenate([path["info"] for path in paths])
+    return observations, actions, next_observations, terminals, concatenated_rewards, concatenated_infos
 
 
 def add_noise(data, noise_to_signal=0.01):
@@ -113,11 +114,3 @@ def add_noise(data, noise_to_signal=0.01):
     mean_data[mean_data == 0] = 1e-5
     std_of_noise = np.abs(mean_data * noise_to_signal)
     return (data + np.random.normal(0.0, std_of_noise, data.shape)).astype(np.float32)
-
-
-def path_length(path):
-    """
-    :param path:
-    :return:
-    """
-    return len(path['reward'])

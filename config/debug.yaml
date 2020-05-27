@@ -1,10 +1,10 @@
 options:
   trainer_options:
-    video_log_frequency: 5
-    log_frequency: 5
+    video_log_frequency: 10
+    log_frequency: 1
     max_video_length: 1000
-    eval_interaction_steps: 250
-    eval_episode_length: 250
+    eval_interaction_steps: 10
+    eval_episode_length: 10
     training_logger_params:
       fps: 28
   seed: 1
