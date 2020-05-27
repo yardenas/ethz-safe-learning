@@ -10,7 +10,6 @@ class BaseAgent(object):
     """
 
     def __init__(self,
-                 seed,
                  replay_buffer_size,
                  add_observation_noise,
                  action_repeat,
@@ -19,12 +18,8 @@ class BaseAgent(object):
                  ):
         self.replay_buffer = rb.ReplayBuffer(replay_buffer_size, add_observation_noise)
         self.action_repeat = action_repeat
-        self.set_random_seeds(seed)
         self.training_report = dict()
         self.total_training_steps = 0
-
-    def set_random_seeds(self, seed):
-        raise NotImplementedError("Random seeds function must be implemented.")
 
     def interact(self, environment):
         samples, timesteps_this_batch = self._interact(environment)
@@ -72,10 +67,10 @@ class BaseAgent(object):
         steps = 0
         pbar = tqdm(total=max_trajectory_length)
         while steps < max_trajectory_length:
-            action = policy.generate_action(observation)
-            for _ in range(self.action_repeat):
+            action_sequence = policy.generate_action(observation)
+            for i in range(min(self.action_repeat, action_sequence.shape[0])):
                 images.append(environment.render(mode='rgb_array'))
-                observation, _, done, _ = environment.step(action)
+                observation, _, done, _ = environment.step(action_sequence[i, ...].squeeze())
                 steps += 1
                 pbar.update(1)
                 if done or steps == max_trajectory_length:
@@ -110,27 +105,25 @@ class BaseAgent(object):
             max_trajectory_length,
             pbar):
         observation = environment.reset()
-        observations, actions, \
-        rewards, next_observations, \
-        terminals, image_obs = [], [], [], [], [], []
+        observations, actions, rewards, next_observations, terminals, infos = \
+            [], [], [], [], [], []
         steps = 0
         rollout_done = False
         while not rollout_done:
-            action = policy.generate_action(observation)
-            for _ in range(self.action_repeat):
+            action_sequence = policy.generate_action(observation)
+            for i in range(min(self.action_repeat, action_sequence.shape[0])):
                 observations.append(observation)
-                actions.append(action)
+                actions.append(action_sequence[i, ...].squeeze())
                 observation, reward, done, info = \
-                    environment.step(action)
+                    environment.step(action_sequence[i, ...].squeeze())
                 steps += 1
                 next_observations.append(observation)
                 rewards.append(reward)
+                infos.append(info)
                 rollout_done = (steps == max_trajectory_length) or done
                 terminals.append(done)
                 if info.get('goal_met', False):
                     print("hellow")
-                    print(next_observations[-1][5] - observations[-1][5])
-                    [data.pop() for data in [observations, actions, next_observations, rewards, terminals]]
                     print(next_observations[-1][5] - observations[-1][5])
                 pbar.update(1)
                 if rollout_done:
@@ -143,5 +136,5 @@ class BaseAgent(object):
             actions,
             rewards,
             next_observations,
-            terminals
-        ), steps
+            terminals,
+            infos), steps

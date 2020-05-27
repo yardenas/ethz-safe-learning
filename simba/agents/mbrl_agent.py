@@ -10,7 +10,6 @@ from simba.models.transition_model import TransitionModel
 
 class MbrlAgent(BaseAgent):
     def __init__(self,
-                 seed,
                  environment,
                  warmup_timesteps,
                  train_batch_size,
@@ -20,7 +19,6 @@ class MbrlAgent(BaseAgent):
                  **kwargs
                  ):
         super().__init__(
-            seed,
             replay_buffer_size,
             **kwargs)
         self.observation_space_dim = environment.observation_space.shape[0]
@@ -37,23 +35,23 @@ class MbrlAgent(BaseAgent):
         self.model = self._make_model(kwargs.pop('model'), kwargs.pop('model_params'), environment)
         self.policy = self._make_policy(kwargs.pop('policy'), kwargs.pop('policy_params'), environment)
 
-    def set_random_seeds(self, seed):
-        if seed is not None:
-            np.random.seed(seed)
-            tf.random.set_seed(seed)
-
     @property
     def warm(self):
         return self.total_warmup_timesteps_so_far >= self.warmup_timesteps
 
     def update(self):
-        observations, actions, next_observations, _, _ = \
+        observations, actions, next_observations, _, _, infos = \
             self.replay_buffer.sample_recent_data(self.train_batch_size)
+        goal_mets = np.array(list(map(lambda info: info.get('goal_met', False), infos)))
+        # We masked transitions where the goal was met since they are non-continuous what extremely destabilizes
+        # the learning of p(s_t_1 | s_t, a_t)
+        masked_observations, masked_actions, masked_next_observations = \
+            observations[~goal_mets, ...], actions[~goal_mets, ...], next_observations[~goal_mets, ...]
         observations_with_actions = np.concatenate([
-            observations,
-            actions], axis=1
+            masked_observations,
+            masked_actions], axis=1
         )
-        losses = self.model.fit(observations_with_actions, next_observations)
+        losses = self.model.fit(observations_with_actions, masked_next_observations)
         self.training_report['losses'] = losses
 
     def _interact(self, environment):
@@ -128,11 +126,11 @@ class MbrlAgent(BaseAgent):
             action_sequences_split = np.array_split(
                 action_sequences, action_sequences.shape[0] // self.policy.horizon, axis=0)
             for (states_split, actions_split) in zip(ground_truth_states_split, action_sequences_split):
-                start_state = np.tile(states_split[0, ...], (5, 1))
-                action_sequence = np.tile(actions_split, (5, 1, 1))
+                start_state = np.tile(states_split[0, ...], (self.policy.particles, 1))
+                action_sequence = np.tile(actions_split, (self.policy.particles, 1, 1))
                 predicted_states = self.model.simulate_trajectories(
                     start_state, action_sequence).reshape(
-                    (5, states_split.shape[0] + 1, states_split.shape[1]))
+                    (self.policy.particles, states_split.shape[0] + 1, states_split.shape[1]))
                 predicted_states = predicted_states[:, :-1, :]
                 squared_errors.append(((predicted_states.mean(axis=0) - states_split) ** 2).mean(axis=(0, 1)))
         self.training_report['mse'] = np.array(squared_errors).mean()

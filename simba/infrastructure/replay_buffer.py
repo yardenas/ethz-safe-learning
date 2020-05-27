@@ -12,6 +12,7 @@ class ReplayBuffer(object):
         self.rewards = None
         self.next_observations = None
         self.terminals = None
+        self.infos = None
         self.add_noise = add_noise
 
     def store(self, paths):
@@ -19,8 +20,7 @@ class ReplayBuffer(object):
         for path in paths:
             self.paths.append(path)
         # convert new rollouts into their component arrays, and append them onto our arrays
-        observations, actions, next_observations, \
-        terminals, rewards = \
+        observations, actions, next_observations, terminals, rewards, infos = \
             concatenate_rollouts(paths)
         if self.add_noise:
             observations = add_noise(observations)
@@ -31,6 +31,7 @@ class ReplayBuffer(object):
             self.next_observations = next_observations[-self.max_size:]
             self.terminals = terminals[-self.max_size:]
             self.rewards = rewards[-self.max_size:]
+            self.infos = infos[-self.max_size:]
         else:
             self.observations = np.concatenate(
                 [self.observations, observations])[-self.max_size:]
@@ -42,6 +43,8 @@ class ReplayBuffer(object):
                 [self.terminals, terminals])[-self.max_size:]
             self.rewards = np.concatenate(
                 [self.rewards, rewards])[-self.max_size:]
+            self.infos = np.concatenate(
+                [self.infos, infos])[-self.max_size:]
 
     def sample_random_rollouts(self, num_rollouts):
         rand_indices = np.random.permutation(len(self.paths))[:num_rollouts]
@@ -58,32 +61,20 @@ class ReplayBuffer(object):
                self.actions[rand_indices], \
                self.next_observations[rand_indices], \
                self.terminals[rand_indices], \
-               self.rewards[rand_indices]
+               self.rewards[rand_indices], \
+               self.infos[rand_indices]
 
-    def sample_recent_data(self, batch_size=1, concat_rew=True):
-        if concat_rew:
-            return self.observations[-batch_size:], self.actions[-batch_size:], self.next_observations[-batch_size:], \
-                   self.terminals[-batch_size:], self.rewards[-batch_size:]
-        else:
-            num_recent_rollouts_to_return = 0
-            num_datapoints_so_far = 0
-            index = -1
-            while num_datapoints_so_far < batch_size:
-                recent_rollout = self.paths[index]
-                index -= 1
-                num_recent_rollouts_to_return += 1
-                num_datapoints_so_far += path_length(recent_rollout)
-            rollouts_to_return = self.paths[-num_recent_rollouts_to_return:]
-            observations, actions, next_observations, terminals, rewards = \
-                concatenate_rollouts(rollouts_to_return)
-            return observations, actions, next_observations, terminals, rewards
+    def sample_recent_data(self, batch_size):
+        return self.observations[-batch_size:], self.actions[-batch_size:], self.next_observations[-batch_size:], \
+               self.terminals[-batch_size:], self.rewards[-batch_size:], self.infos[-batch_size:]
 
 
 def path_summary(observations,
                  actions,
                  rewards,
                  next_observations,
-                 terminals):
+                 terminals,
+                 infos):
     """
         Take info (separate arrays) from a single rollout
         and return it in a single dictionary
@@ -92,7 +83,8 @@ def path_summary(observations,
             "reward": np.array(rewards, dtype=np.float32),
             "action": np.array(actions, dtype=np.float32),
             "next_observation": np.array(next_observations, dtype=np.float32),
-            "terminal": np.array(terminals, dtype=np.float32)}
+            "terminal": np.array(terminals, dtype=np.float32),
+            "info": infos}
 
 
 def concatenate_rollouts(paths):
