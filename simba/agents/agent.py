@@ -105,9 +105,8 @@ class BaseAgent(object):
             max_trajectory_length,
             pbar):
         observation = environment.reset()
-        observations, actions, \
-        rewards, next_observations, \
-        terminals, image_obs = [], [], [], [], [], []
+        observations, actions, rewards, next_observations, terminals, infos = \
+            [], [], [], [], [], []
         steps = 0
         rollout_done = False
         while not rollout_done:
@@ -120,12 +119,11 @@ class BaseAgent(object):
                 steps += 1
                 next_observations.append(observation)
                 rewards.append(reward)
+                infos.append(info)
                 rollout_done = (steps == max_trajectory_length) or done
                 terminals.append(done)
                 if info.get('goal_met', False):
                     print("hellow")
-                    print(next_observations[-1][5] - observations[-1][5])
-                    [data.pop() for data in [observations, actions, next_observations, rewards, terminals]]
                     print(next_observations[-1][5] - observations[-1][5])
                 pbar.update(1)
                 if rollout_done:
@@ -138,5 +136,5 @@ class BaseAgent(object):
             actions,
             rewards,
             next_observations,
-            terminals
-        ), steps
+            terminals,
+            infos), steps
