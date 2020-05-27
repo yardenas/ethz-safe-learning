@@ -40,7 +40,7 @@ class CemMpc(MpcPolicy):
         action_dim = self.action_space.shape[0]
         mu = tf.broadcast_to(mu, (self.horizon, action_dim))
         sigma = tf.broadcast_to(sigma, (self.horizon, action_dim))
-        best_so_far = tf.zeros((action_dim,), dtype=tf.float32)
+        best_so_far = tf.zeros((self.horizon, action_dim), dtype=tf.float32)
         best_so_far_score = -np.inf * tf.ones((), dtype=tf.float32)
         for _ in tf.range(self.iterations):
             action_sequences = tf.random.normal(

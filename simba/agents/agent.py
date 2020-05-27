@@ -70,7 +70,7 @@ class BaseAgent(object):
             action_sequence = policy.generate_action(observation)
             for i in range(min(self.action_repeat, action_sequence.shape[0])):
                 images.append(environment.render(mode='rgb_array'))
-                observation, _, done, _ = environment.step(action_sequence[i])
+                observation, _, done, _ = environment.step(action_sequence[i, ...].squeeze())
                 steps += 1
                 pbar.update(1)
                 if done or steps == max_trajectory_length:
@@ -114,9 +114,9 @@ class BaseAgent(object):
             action_sequence = policy.generate_action(observation)
             for i in range(min(self.action_repeat, action_sequence.shape[0])):
                 observations.append(observation)
-                actions.append(action_sequence[i])
+                actions.append(action_sequence[i, ...].squeeze())
                 observation, reward, done, info = \
-                    environment.step(action_sequence[i])
+                    environment.step(action_sequence[i, ...].squeeze())
                 steps += 1
                 next_observations.append(observation)
                 rewards.append(reward)
