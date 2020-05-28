@@ -46,6 +46,17 @@ class RLTrainer(object):
         # self.agent.load_graph()
         pass
 
+    def evaluate_agent(self, interaction_steps, max_trajectory_length):
+        evaluation_trajectories, _ = self.agent.sample_trajectories(self.environment,
+                                                                    self.agent.policy,
+                                                                    interaction_steps,
+                                                                    max_trajectory_length)
+        eval_return_values = np.array([trajectory['reward'].sum() for
+                                       trajectory in evaluation_trajectories])
+        return dict(
+            training_rl_objective=eval_return_values.mean(),
+            sum_rewards_stddev=eval_return_values.std())
+
     def log(self, report, epoch):
         """
         Takes a report from the agent and logs it.
