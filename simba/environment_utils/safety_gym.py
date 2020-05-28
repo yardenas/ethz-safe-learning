@@ -50,12 +50,13 @@ class SafetyGymStateScorer(object):
         self.sensor_offset_table = sensor_offset_table
 
     def reward(self, observations, next_observations):
-        reward = tf.zeros((observations.shape[0],))
+        reward = tf.zeros((tf.shape(observations)[0],))
+        goal_achieved = tf.zeros_like(reward, dtype=tf.bool)
         # Distance from robot to goal
         if self.task == 'goal':
             dist_goal = self.goal_distance_metric(observations)
             next_dist_goal = self.goal_distance_metric(next_observations)
-            goal_achieved = tf.less_equal(dist_goal, self.goal_size)
+            goal_achieved = tf.less_equal(dist_goal, self.goal_size - 0.1)
             reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(goal_achieved, tf.float32) * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
@@ -80,7 +81,7 @@ class SafetyGymStateScorer(object):
         # Clip reward
         if self.reward_clip:
             reward = tf.clip_by_value(reward, -self.reward_clip, self.reward_clip)
-        return reward, tf.zeros_like(reward, dtype=tf.bool)
+        return reward, goal_achieved
 
     def cost(self, observations):
         """ Calculate the current costs and return a dict
@@ -143,11 +144,11 @@ class SafetyGymStateScorer(object):
         angles = (tf.range(self.lidar_num_bins) + 0.5) * 2.0 * np.pi / self.lidar_num_bins
         x = tf.math.cos(angles)
         x = tf.broadcast_to(
-            x, (lidar_measurement.shape[0], x.shape[0])
+            x, (tf.shape(lidar_measurement)[0], tf.shape(x)[0])
         )
         y = tf.math.sin(angles)
         y = tf.broadcast_to(
-            y, (lidar_measurement.shape[0], y.shape[0])
+            y, (tf.shape(lidar_measurement)[0], tf.shape(y)[0])
         )
         averaged_x = tf.reduce_sum(tf.linalg.tensordot(x, lidar_measurement + 1e-7, axis=1))
         averaged_y = tf.reduce_sum(tf.linalg.tensordot(y, lidar_measurement + 1e-7, axis=1))

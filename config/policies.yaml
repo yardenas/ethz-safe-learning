@@ -1,6 +1,6 @@
 policies:
   cem_mpc:
-    horizon: 12
+    horizon: 10
     iterations: 10
     objective: TODOYARDEN
     smoothing: 0.0
@@ -8,6 +8,7 @@ policies:
     n_elite: 30
     particles: 5
     stddev_threshold: 0.25
+    noise_stddev: 0.05
   mppi_mpc:
     horizon: 10
     objective: TODOYARDEN

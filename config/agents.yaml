@@ -1,13 +1,13 @@
 agents:
   agent:
     replay_buffer_size: 1000000
-    action_repeat: 3
+    action_repeat: 5
     add_observation_noise: False
   mbrl_agent:
-    train_batch_size: 1000000
+    train_batch_size: 30000
     train_interaction_steps: 1000
     episode_length: 1000
     warmup_timesteps: 5000
     policy: cem_mpc
     model: mlp_ensemble
-    scale_features: False
+    scale_features: True

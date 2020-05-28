@@ -19,6 +19,5 @@ def make_agent(config, environment):
                len(environment.observation_space.shape) == 1, "No support for non-flat action/observation spaces."
         kwargs = {**agent_params, **base_agent_params, 'policy_params': policy_params,
                   'model_params': model_params}
-        return agents.MbrlAgent(seed=config['options']['seed'],
-                                environment=environment,
+        return agents.MbrlAgent(environment=environment,
                                 **kwargs)
