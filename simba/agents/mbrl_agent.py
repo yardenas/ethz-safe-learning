@@ -47,7 +47,7 @@ class MbrlAgent(BaseAgent):
         # the learning of p(s_t_1 | s_t, a_t)
         masked_observations, masked_actions, masked_next_observations = \
             observations[~goal_mets, ...], actions[~goal_mets, ...], next_observations[~goal_mets, ...]
-        assert np.all(np.abs(masked_next_observations - masked_observations) < 1.0), "Discontinuous data."
+        assert np.all(np.abs(masked_next_observations[:, 5] - masked_observations[:, 5]) < 1.0), "Discontinuous data."
         observations_with_actions = np.concatenate([
             masked_observations,
             masked_actions], axis=1
