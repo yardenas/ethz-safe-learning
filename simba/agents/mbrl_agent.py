@@ -41,7 +41,7 @@ class MbrlAgent(BaseAgent):
 
     def update(self):
         observations, actions, next_observations, _, _, infos = \
-            self.replay_buffer.sample_random_data(self.train_batch_size)
+            self.replay_buffer.sample_recent_data(self.train_batch_size)
         goal_mets = np.array(list(map(lambda info: info.get('goal_met', False), infos)))
         # We masked transitions where the goal was met since they are non-continuous what extremely destabilizes
         # the learning of p(s_t_1 | s_t, a_t)
