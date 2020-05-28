@@ -56,7 +56,7 @@ class ReplayBuffer(object):
     def sample_random_data(self, batch_size):
         assert self.observations.shape[0] == self.actions.shape[0] == \
                self.rewards.shape[0] == self.next_observations.shape[0] == self.terminals.shape[0]
-        rand_indices = np.random.permutation(self.observations.shape[0])[:batch_size]
+        rand_indices = np.random.permutation(self.observations.shape[0])[-batch_size:]
         return self.observations[rand_indices], \
                self.actions[rand_indices], \
                self.next_observations[rand_indices], \
