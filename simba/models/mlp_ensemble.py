@@ -72,19 +72,19 @@ class MlpEnsemble(tf.Module):
                  inputs_dim,
                  outputs_dim,
                  ensemble_size,
-                 n_epochs,
                  batch_size,
                  validation_split,
                  learning_rate,
+                 training_steps,
                  mlp_params):
         super().__init__()
         self.inputs_dim = inputs_dim
         self.outputs_dim = outputs_dim
         self.ensemble_size = ensemble_size
-        self.n_epochs = n_epochs
         self.batch_size = batch_size
         self.validation_split = validation_split
         self.learning_rate = learning_rate
+        self.training_steps = training_steps
         self.mlp_params = mlp_params
         self.ensemble = [GaussianDistMlp(inputs_dim=self.inputs_dim, outputs_dim=self.outputs_dim, **self.mlp_params)
                          for _ in range(self.ensemble_size)]
@@ -138,24 +138,26 @@ class MlpEnsemble(tf.Module):
         assert inputs.shape[0] == targets.shape[0], "Inputs batch size ({}) "
         "doesn't match targets batch size ({})".format(inputs.shape[0], targets.shape[0])
         assert np.isfinite(inputs).all() and np.isfinite(targets).all(), "Training data is not finite."
-        losses = np.empty((self.n_epochs,))
+        losses = np.empty((self.training_steps,))
         train_inputs, train_targets, validate_inputs, validate_targets = self.split_train_validate(inputs, targets)
         n_batches = int(np.ceil(train_inputs.shape[0] / self.batch_size))
-        for epoch in range(self.n_epochs):
-            avg_loss = 0.0
+        step = 0
+        while step < self.training_steps:
             shuffles_per_mlp = np.array([np.random.permutation(train_inputs.shape[0])
                                          for _ in range(self.ensemble_size)])
             x_batches = np.array_split(train_inputs[shuffles_per_mlp], n_batches, axis=1)
             y_batches = np.array_split(train_targets[shuffles_per_mlp], n_batches, axis=1)
             for x_batch, y_batch in zip(x_batches, y_batches):
-                batch_loss = self.training_step(tf.constant(x_batch),
-                                                tf.constant(y_batch))
-                avg_loss += batch_loss / n_batches
-            if epoch % 20 == 0:
-                validation_loss = self.validation_step(validate_inputs, validate_targets).numpy()
-                logger.debug(
-                    "Epoch {} | Training Loss {} | Validation Loss {}".format(epoch, avg_loss, validation_loss))
-            losses[epoch] = avg_loss
+                loss = self.training_step(tf.constant(x_batch),
+                                          tf.constant(y_batch))
+                losses[step] = loss
+                step += 1
+                if step % 100 == 0:
+                    validation_loss = self.validation_step(validate_inputs, validate_targets).numpy()
+                    logger.debug(
+                        "Step {} | Training Loss {} | Validation Loss {}".format(step, loss, validation_loss))
+                if step == self.training_steps:
+                    break
         return losses
 
     @tf.function

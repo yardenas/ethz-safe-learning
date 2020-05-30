@@ -1,12 +1,12 @@
 models:
   mlp_ensemble:
     ensemble_size: 5
-    n_epochs: 75
-    batch_size: 128
-    validation_split: 0.1
-    learning_rate: 0.001
+    batch_size: 64
+    validation_split: 0.2
+    learning_rate: 0.0001
+    training_steps: 250
     mlp_params:
-      n_layers: 2
-      units: 250
+      n_layers: 4
+      units: 128
       activation: tf.nn.relu
       dropout_rate: 0.0
