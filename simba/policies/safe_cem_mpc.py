@@ -77,7 +77,7 @@ class SafeCemMpc(CemMpc):
             if tf.less_equal(tf.reduce_mean(sigma), self.stddev_threshold):
                 break
         return best_so_far + tf.random.normal(best_so_far.shape, stddev=self.noise_stddev)
-
+    ### YARDEN
     def compute_safety_and_objective(self, trajectories, action_sequences):
         cumulative_rewards = tf.zeros((tf.shape(trajectories)[0],))
         done_trajectories = tf.zeros((tf.shape(trajectories)[0],), dtype=bool)
