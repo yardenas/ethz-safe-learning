@@ -84,27 +84,26 @@ class SafetyGymStateScorer(object):
         return reward, goal_achieved
 
     def cost(self, observations):
-        cost = tf.zeros((tf.shape(observations)[0],))
+        cost = tf.zeros((tf.shape(observations)[0],), dtype=tf.float32)
         # Conctacts processing
         if self.constrain_vases:
             vases_lidar = observations[:, self.sensor_offset_table['vases_lidar']]
             vases_dist = self.closest_distance(vases_lidar)
-            cost += (vases_dist <= self.vases_size)
+            cost += tf.cast(tf.less_equal(vases_dist, self.vases_size), dtype=tf.float32)
         if self.constrain_hazards:
             hazards_lidar = observations[:, self.sensor_offset_table['hazards_lidar']]
             hazards_dist = self.closest_distance(hazards_lidar)
-            cost += hazards_dist <= self.hazards_size
-            # print("fake hazards ", hazards_dist)
+            cost += tf.cast(tf.less_equal(hazards_dist, self.hazards_size), dtype=tf.float32)
         if self.constrain_pillars:
             pillars_lidar = observations[:, self.sensor_offset_table['pillars_lidar']]
             pillars_dist = self.closest_distance(pillars_lidar)
-            cost += (pillars_dist <= self.pillars_size)
+            cost += tf.cast(tf.less_equal(pillars_dist, self.hazards_size), dtype=tf.float32)
         if self.constrain_gremlins:
             gremlins_lidar = observations[:, self.sensor_offset_table['gremlins_lidar']]
             gremlins_dist = self.closest_distance(gremlins_lidar)
-            cost += (gremlins_dist <= self.gremlins_lidar)
+            cost += tf.cast(tf.less_equal(gremlins_dist, self.hazards_size), dtype=tf.float32)
         if self.constrain_indicator:
-            return tf.greater(cost > 0.0)
+            return tf.cast(tf.greater(cost, 0.0), dtype=tf.float32)
         return cost
 
     def goal_distance_metric(self, observations):
@@ -125,9 +124,9 @@ class SafetyGymStateScorer(object):
         if self.lidar_max_dist is None:
             return -tf.math.log(tf.reduce_max(lidar_measurement, axis=1) + 1e-100) / self.lidar_exp_gain
         else:
-            return tf.minimum(
+            return tf.clip_by_value(
                 self.lidar_max_dist - tf.reduce_max(lidar_measurement, axis=1) * self.lidar_max_dist - eps,
-                self.lidar_max_dist)
+                0.0, self.lidar_max_dist)
 
     def average_direction(self, lidar_measurement):
         angles = (tf.range(self.lidar_num_bins) + 0.5) * 2.0 * np.pi / self.lidar_num_bins

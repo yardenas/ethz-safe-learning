@@ -2,7 +2,7 @@ import numpy as np
 from simba.infrastructure.common import standardize_name
 from simba.infrastructure.logging_utils import logger
 from simba.agents import BaseAgent
-from simba.policies import CemMpc, RandomShootingMpc, RandomMpc
+from simba.policies import CemMpc, SafeCemMpc, RandomShootingMpc, RandomMpc
 from simba.models.transition_model import TransitionModel
 
 
