@@ -46,7 +46,6 @@ class SafetyGymStateScorer(object):
     def __init__(self, config, sensor_offset_table):
         for key, value in config.items():
             setattr(self, key, value)
-        self.last_box_observed = False
         self.sensor_offset_table = sensor_offset_table
 
     def reward(self, observations, next_observations):
