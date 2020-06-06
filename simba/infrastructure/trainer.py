@@ -43,7 +43,6 @@ class RLTrainer(object):
                 ), iteration)
 
     def play_trained_model(self):
-        # self.agent.load_graph()
         pass
 
     def evaluate_agent(self, interaction_steps, max_trajectory_length):
@@ -61,11 +60,15 @@ class RLTrainer(object):
         """
         Takes a report from the agent and logs it.
         """
-        train_return_values = np.array([trajectory['reward'].sum()
-                                        for trajectory in report.pop('training_trajectories')])
+        train_return_values = np.asarray([trajectory['reward'].sum()
+                                          for trajectory in report['training_trajectories']])
+        trajectories_infos = [trajectory['info'] for trajectory in report.pop('training_trajectories')]
+        sum_costs = np.asarray([sum(list(map(lambda info: info.get('cost', 0.0), trajectory)))
+                                for trajectory in trajectories_infos])
         report.update(dict(
             training_rl_objective=train_return_values.mean(),
-            sum_rewards_stddev=train_return_values.std()
+            sum_rewards_stddev=train_return_values.std(),
+            mean_sum_costs=sum_costs.mean()
         ))
         losses = report.pop('losses')
         for i, loss in enumerate(losses):
