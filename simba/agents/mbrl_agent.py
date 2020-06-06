@@ -120,9 +120,9 @@ class MbrlAgent(BaseAgent):
             action_sequences = evaluation_trajecty['action']
             # Breaking into horizon-length trajectories.
             ground_truth_states_split = np.array_split(
-                ground_truth_states, ground_truth_states.shape[0] // self.policy.horizon, axis=0)
+                ground_truth_states, max(ground_truth_states.shape[0] // self.policy.horizon, 1), axis=0)
             action_sequences_split = np.array_split(
-                action_sequences, action_sequences.shape[0] // self.policy.horizon, axis=0)
+                action_sequences, max(action_sequences.shape[0] // self.policy.horizon, 1), axis=0)
             for (states_split, actions_split) in zip(ground_truth_states_split, action_sequences_split):
                 start_state = np.tile(states_split[0, ...], (self.policy.particles, 1))
                 action_sequence = np.tile(actions_split, (self.policy.particles, 1, 1))

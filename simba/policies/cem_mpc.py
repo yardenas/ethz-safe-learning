@@ -39,7 +39,7 @@ class CemMpc(MpcPolicy):
         action_dim = self.action_space.shape[0]
         mu = tf.broadcast_to(mu, (self.horizon, action_dim))
         sigma = tf.broadcast_to(sigma, (self.horizon, action_dim))
-        best_so_far = tf.zeros((self.horizon, action_dim), dtype=tf.float32)
+        best_so_far = tf.zeros((action_dim,), dtype=tf.float32)
         best_so_far_score = -np.inf * tf.ones((), dtype=tf.float32)
         for _ in tf.range(self.iterations):
             action_sequences = tf.random.normal(
@@ -60,7 +60,7 @@ class CemMpc(MpcPolicy):
             elite_scores, elite = tf.nn.top_k(scores, self.elite, sorted=False)
             best_of_elite = tf.argmax(elite_scores)
             if tf.greater(elite_scores[best_of_elite], best_so_far_score):
-                best_so_far = action_sequences[elite[best_of_elite], ...]
+                best_so_far = action_sequences[elite[best_of_elite], 0, ...]
                 best_so_far_score = elite_scores[best_of_elite]
             elite_actions = tf.gather(action_sequences, elite, axis=0)
             mean, variance = tf.nn.moments(elite_actions, axes=0)
