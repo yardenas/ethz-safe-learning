@@ -9,7 +9,6 @@ class MpcPolicy(PolicyBase):
                  model,
                  environment,
                  horizon,
-                 objective,
                  n_samples,
                  particles):
         super().__init__()
@@ -18,14 +17,13 @@ class MpcPolicy(PolicyBase):
         self.action_space = environment.action_space
         assert isinstance(self.action_space, spaces.Box), "Expecting only box as action space."
         self.horizon = horizon
-        self.objective = self.pets_objective
         self.n_samples = n_samples
         self.particles = particles
 
     def generate_action(self, state):
         raise NotImplementedError
 
-    def compute_cumulative_rewards(self, trajectories, action_sequences):
+    def compute_objective(self, trajectories, action_sequences):
         cumulative_rewards = tf.zeros((tf.shape(trajectories)[0],))
         done_trajectories = tf.zeros((tf.shape(trajectories)[0],), dtype=bool)
         horizon = trajectories.shape[1]
@@ -37,7 +35,8 @@ class MpcPolicy(PolicyBase):
             done_trajectories = tf.logical_or(
                 dones, done_trajectories)
             cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
-        return cumulative_rewards
+        rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
+        return tf.reduce_mean(rewards_per_sample, axis=0)
 
     def build(self):
         logger.debug("Building policy.")
@@ -57,14 +56,3 @@ class MpcPolicy(PolicyBase):
             stddev = 100
         return lower_bound, upper_bound, mean, stddev
 
-    def pets_objective(self, cumulative_rewards):
-        rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
-        return tf.reduce_mean(
-            rewards_per_sample, axis=0)
-
-    def pets_with_exploration_bonus(self, cumulative_rewards):
-        # TODO (yarden): ugly access to the model ensemble size.
-        rewards_per_sample_per_net = tf.reshape(cumulative_rewards, (self.model.model.ensemble_size, -1, self.n_samples))
-        particle_mean = tf.reduce_mean(rewards_per_sample_per_net, axis=1)
-        epistemic = tf.math.reduce_std(particle_mean, axis=0)
-        return self.pets_objective(cumulative_rewards) + epistemic

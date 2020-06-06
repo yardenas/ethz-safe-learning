@@ -10,7 +10,6 @@ class SafeCemMpc(CemMpc):
                  environment,
                  horizon,
                  iterations,
-                 objective,
                  smoothing,
                  n_samples,
                  n_elite,
@@ -23,7 +22,6 @@ class SafeCemMpc(CemMpc):
             environment,
             horizon,
             iterations,
-            objective,
             smoothing,
             n_samples,
             n_elite,
@@ -35,15 +33,19 @@ class SafeCemMpc(CemMpc):
         self.posterior_mean_threashold = posterior_mean_threashold
 
     def generate_action(self, state):
-        return self.do_generate_action(tf.constant(state, dtype=tf.float32)).numpy()
+        action, best_score = self.do_generate_action(tf.constant(state, dtype=tf.float32))
+        if best_score == -np.inf:
+            print("trying with safe")
+            return self.optimize_for_safety(tf.constant(state, dtype=tf.float32)).numpy()
+        else:
+            return action.numpy()
 
-    # @tf.function
-    def do_generate_action(self, state):
+    @tf.function
+    def optimize_for_safety(self, state):
         lb, ub, mu, sigma = self.sampling_params
         action_dim = self.action_space.shape[0]
         mu = tf.broadcast_to(mu, (self.horizon, action_dim))
         sigma = tf.broadcast_to(sigma, (self.horizon, action_dim))
-        # This initialization can be a safe policy if we know of a safe policy!
         best_so_far = tf.zeros((action_dim,), dtype=tf.float32)
         best_so_far_score = -np.inf * tf.ones((), dtype=tf.float32)
         for _ in tf.range(self.iterations):
@@ -58,12 +60,9 @@ class SafeCemMpc(CemMpc):
             trajectories = self.model.unfold_sequences(
                 tf.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch
             )
-            tf.debugging.assert_less(trajectories, 1e3, "Not all trajectory values were finite.")
-            safe_trajectories, trajectories_returns = self.compute_safety_and_objective(trajectories,
-                                                                                        action_sequences_batch)
-            tf.print("How much safe? ", tf.math.count_nonzero(safe_trajectories))
-            trajectories_returns = tf.where(safe_trajectories, trajectories_returns, -np.inf)
-            elite_scores, elite = tf.nn.top_k(trajectories_returns, self.elite, sorted=False)
+            mean_costs = self.compute_mean_costs(trajectories, action_sequences_batch)
+            scores = -mean_costs
+            elite_scores, elite = tf.nn.top_k(scores, self.elite, sorted=False)
             best_of_elite = tf.argmax(elite_scores)
             if tf.greater(elite_scores[best_of_elite], best_so_far_score):
                 best_so_far = action_sequences[elite[best_of_elite], 0, ...]
@@ -77,7 +76,7 @@ class SafeCemMpc(CemMpc):
                 break
         return best_so_far + tf.random.normal(best_so_far.shape, stddev=self.noise_stddev)
 
-    def compute_safety_and_objective(self, trajectories, action_sequences):
+    def compute_objective(self, trajectories, action_sequences):
         cumulative_rewards = tf.zeros((self.n_samples * self.particles,), dtype=tf.float32)
         done_trajectories = tf.zeros((self.n_samples * self.particles,), dtype=tf.bool)
         safe_trajectories = tf.ones((self.n_samples,), dtype=tf.bool)
@@ -95,7 +94,20 @@ class SafeCemMpc(CemMpc):
                 probably_safe, safe_trajectories)
             cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
         rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
-        return safe_trajectories, tf.reduce_mean(rewards_per_sample, axis=0)
+        trajectories_returns = tf.reduce_mean(rewards_per_sample, axis=0)
+        return tf.where(safe_trajectories, trajectories_returns, -np.inf)
+
+    def compute_mean_costs(self, trajectories, action_sequences):
+        cumulative_costs = tf.zeros((tf.shape(trajectories)[0],))
+        horizon = trajectories.shape[1]
+        for t in range(horizon - 1):
+            s_t = trajectories[:, t, ...]
+            s_t_1 = trajectories[:, t + 1, ...]
+            a_t = action_sequences[:, t, ...]
+            cost = self.cost(s_t, a_t, s_t_1)
+            cumulative_costs += cost
+        costs_per_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
+        return tf.reduce_mean(costs_per_sample, axis=0)
 
     def bayesian_safety_beta_inference(self, costs):
         costs_per_sample = tf.reshape(costs, (self.particles, self.n_samples))

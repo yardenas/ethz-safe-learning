@@ -9,7 +9,6 @@ class CemMpc(MpcPolicy):
                  environment,
                  horizon,
                  iterations,
-                 objective,
                  smoothing,
                  n_samples,
                  n_elite,
@@ -20,7 +19,6 @@ class CemMpc(MpcPolicy):
             model,
             environment,
             horizon,
-            objective,
             n_samples,
             particles
         )
@@ -31,7 +29,8 @@ class CemMpc(MpcPolicy):
         self.noise_stddev = noise_stddev
 
     def generate_action(self, state):
-        return self.do_generate_action(tf.constant(state, dtype=tf.float32)).numpy()
+        action, _ = self.do_generate_action(tf.constant(state, dtype=tf.float32))
+        return action.numpy()
 
     @tf.function
     def do_generate_action(self, state):
@@ -53,10 +52,7 @@ class CemMpc(MpcPolicy):
             trajectories = self.model.unfold_sequences(
                 tf.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch
             )
-            if tf.reduce_any(tf.greater(trajectories, 1e3)):
-                tf.print("Not all trajectory values were finite!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batch)
-            scores = self.objective(cumulative_rewards)
+            scores = self.compute_objective(trajectories, action_sequences_batch)
             elite_scores, elite = tf.nn.top_k(scores, self.elite, sorted=False)
             best_of_elite = tf.argmax(elite_scores)
             if tf.greater(elite_scores[best_of_elite], best_so_far_score):
@@ -69,4 +65,4 @@ class CemMpc(MpcPolicy):
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * stddev
             if tf.less_equal(tf.reduce_mean(sigma), self.stddev_threshold):
                 break
-        return best_so_far + tf.random.normal(best_so_far.shape, stddev=self.noise_stddev)
+        return best_so_far + tf.random.normal(best_so_far.shape, stddev=self.noise_stddev), best_so_far_score
