@@ -30,13 +30,8 @@ class SafeCemMpc(CemMpc):
             stddev_threshold,
             noise_stddev
         )
-        self.iterations = iterations
-        self.smoothing = smoothing
-        self.elite = n_elite
-        self.stddev_threshold = stddev_threshold
-        self.noise_stddev = noise_stddev
-		self.cost = environment.cost
-		self.posterior_mean_threashold = posterior_mean_threashold
+        self.cost = environment.get_cost
+        self.posterior_mean_threashold = posterior_mean_threashold
 
     def generate_action(self, state):
         return self.do_generate_action(tf.constant(state, dtype=tf.float32)).numpy()
@@ -63,8 +58,8 @@ class SafeCemMpc(CemMpc):
                 tf.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch
             )
             tf.debugging.assert_less(trajectories, 1e3, "Not all trajectory values were finite.")
-            safe_trajectories, trajectories_returns = self.compute_safety_return(trajectories,
-                                                                                 action_sequences_batch)
+            safe_trajectories, trajectories_returns = self.compute_safety_and_objective(trajectories,
+                                                                                        action_sequences_batch)
             trajectories_returns = tf.where(safe_trajectories, trajectories_returns, -np.inf)
             elite_scores, elite = tf.nn.top_k(trajectories_returns, self.elite, sorted=False)
             best_of_elite = tf.argmax(elite_scores)
@@ -80,7 +75,7 @@ class SafeCemMpc(CemMpc):
                 break
         return best_so_far + tf.random.normal(best_so_far.shape, stddev=self.noise_stddev)
 
-    def compute_safety_return(self, trajectories, action_sequences):
+    def compute_safety_and_objective(self, trajectories, action_sequences):
         cumulative_rewards = tf.zeros((tf.shape(trajectories)[0],))
         done_trajectories = tf.zeros((tf.shape(trajectories)[0],), dtype=tf.bool)
         safe_trajectories = tf.ones((tf.shape(trajectories)[0],), dtype=tf.bool)
@@ -104,7 +99,7 @@ class SafeCemMpc(CemMpc):
         costs_per_sample = tf.reshape(costs, (self.particles, self.n_samples))
         counts = tf.reduce_sum(costs_per_sample, axis=0)
         # sigma of 0.289 is the standard deviation of a uniform density.
-        mu, sigma = 0.5, 0.28
+        mu, sigma = 0.5, 0.295
         # Computing parameters for the prior.
         alpha = (((1.0 - mu) / sigma ** 2) - 1.0 / mu) * (mu ** 2)
         beta = alpha * (1.0 / mu - 1)
