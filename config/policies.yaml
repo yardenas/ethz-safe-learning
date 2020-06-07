@@ -14,10 +14,10 @@ policies:
     smoothing: 0.0
     n_samples: 150
     n_elite: 30
-    particles: 5
+    particles: 15
     stddev_threshold: 0.25
     noise_stddev: 0.1
-    posterior_mean_threashold: 0.5
+    posterior_mean_threashold: 0.3
   random_shooting_mpc:
     horizon: 10
     n_samples: 1000

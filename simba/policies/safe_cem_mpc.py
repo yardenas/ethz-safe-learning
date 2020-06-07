@@ -31,13 +31,15 @@ class SafeCemMpc(CemMpc):
         )
         self.cost = environment.get_cost
         self.posterior_mean_threashold = posterior_mean_threashold
+        self.last_action = tf.zeros((self.action_space.shape[0],), dtype=tf.float32)
 
     def generate_action(self, state):
         action, best_score = self.do_generate_action(tf.constant(state, dtype=tf.float32))
         if best_score == -np.inf:
-            print("trying with safe")
-            return self.optimize_for_safety(tf.constant(state, dtype=tf.float32)).numpy()
+            return self.last_action
+            # return self.optimize_for_safety(tf.constant(state, dtype=tf.float32)).numpy()
         else:
+            self.last_action = action
             return action.numpy()
 
     @tf.function
@@ -81,6 +83,7 @@ class SafeCemMpc(CemMpc):
         done_trajectories = tf.zeros((self.n_samples * self.particles,), dtype=tf.bool)
         safe_trajectories = tf.ones((self.n_samples,), dtype=tf.bool)
         horizon = trajectories.shape[1]
+        mu, sigma = tf.linspace(0.5, 0.01, horizon - 1), tf.linspace(0.285, 0.05, horizon - 1)
         for t in range(horizon - 1):
             s_t = trajectories[:, t, ...]
             s_t_1 = trajectories[:, t + 1, ...]
@@ -89,7 +92,7 @@ class SafeCemMpc(CemMpc):
             done_trajectories = tf.logical_or(
                 dones, done_trajectories)
             cost = self.cost(s_t, a_t, s_t_1) * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
-            probably_safe = self.bayesian_safety_beta_inference(cost)
+            probably_safe = self.bayesian_safety_beta_inference(cost, mu[t], sigma[t])
             safe_trajectories = tf.logical_and(
                 probably_safe, safe_trajectories)
             cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
@@ -109,11 +112,9 @@ class SafeCemMpc(CemMpc):
         costs_per_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
         return tf.reduce_mean(costs_per_sample, axis=0)
 
-    def bayesian_safety_beta_inference(self, costs):
+    def bayesian_safety_beta_inference(self, costs, mu=0.5, sigma=0.285):
         costs_per_sample = tf.reshape(costs, (self.particles, self.n_samples))
         counts = tf.reduce_sum(costs_per_sample, axis=0)
-        # sigma of 0.289 is the standard deviation of a uniform density.
-        mu, sigma = 0.5, 0.295
         # Computing parameters for the prior.
         alpha = (((1.0 - mu) / sigma ** 2) - 1.0 / mu) * (mu ** 2)
         beta = alpha * (1.0 / mu - 1)
