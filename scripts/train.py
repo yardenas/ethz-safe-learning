@@ -25,8 +25,8 @@ def main():
     params = load_config_or_die(args.config_dir, args.config_basename)
     np.random.seed(params['options']['seed'])
     tf.random.set_seed(params['options']['seed'])
-    logging.info("Startning a training session with parameters:\n" +
-                 pretty_print(params))
+    logging.getLogger('simba').info("Startning a training session with parameters:\n" +
+                                    pretty_print(params))
     dump_string(pretty_print(params) + '\n' +
                 'git hash: ' + get_git_hash(), experiment_log_dir + '/params.txt')
     env = make_environment(params)
