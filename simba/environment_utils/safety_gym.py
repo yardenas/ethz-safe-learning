@@ -24,13 +24,13 @@ class MbrlSafetyGym(MbrlEnv):
     def get_reward(self, obs, acs, *args, **kwargs):
         return self._scorer.reward(obs, *args, **kwargs)
 
+    def get_cost(self, obs, acs, *args, **kwargs):
+        return self._scorer.cost(obs)
+
     def fix_observation(self, observation):
         # Predicting distances in exponential-space seems to really hold back the model from learning anything.
         observation[self.sensor_offset_table['goal_dist']] = -np.log(observation[self.sensor_offset_table['goal_dist']])
         observation[self.sensor_offset_table['accelerometer']][2] += np.random.normal(loc=0, scale=0.01)
-        # observation[self.sensor_offset_table['gyro']][:2] += np.random.normal(loc=0, scale=0.1)
-        # observation[self.sensor_offset_table['velocimeter']][2] += np.random.normal(loc=0, scale=0.1)
-        # observation[self.sensor_offset_table['magnetometer']][2] += np.random.normal(loc=0, scale=0.1)
         return observation
 
     def step(self, action):
@@ -46,7 +46,6 @@ class SafetyGymStateScorer(object):
     def __init__(self, config, sensor_offset_table):
         for key, value in config.items():
             setattr(self, key, value)
-        self.last_box_observed = False
         self.sensor_offset_table = sensor_offset_table
 
     def reward(self, observations, next_observations):
@@ -57,7 +56,8 @@ class SafetyGymStateScorer(object):
             dist_goal = self.goal_distance_metric(observations)
             next_dist_goal = self.goal_distance_metric(next_observations)
             goal_achieved = tf.less_equal(dist_goal, self.goal_size - 0.1)
-            reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(goal_achieved, tf.float32) * self.reward_goal
+            reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(goal_achieved,
+                                                                                    tf.float32) * self.reward_goal
         # Distance from robot to box
         elif self.task == 'push':
             box_observed = tf.math.reduce_any(
@@ -84,38 +84,26 @@ class SafetyGymStateScorer(object):
         return reward, goal_achieved
 
     def cost(self, observations):
-        """ Calculate the current costs and return a dict
-         assumes SG6 tasks"""
-        observations_exp = np.expand_dims(observations, axis=0) if observations.ndim == 1 else \
-            observations
-        cost = 0.0
+        cost = tf.zeros((tf.shape(observations)[0],), dtype=tf.float32)
         # Conctacts processing
         if self.constrain_vases:
-            vases_lidar = observations_exp[:, self.sensor_offset_table['vases_lidar']]
+            vases_lidar = observations[:, self.sensor_offset_table['vases_lidar']]
             vases_dist = self.closest_distance(vases_lidar)
-            cost += (vases_dist <= self.vases_size)
+            cost += tf.cast(tf.less_equal(vases_dist, self.vases_size), dtype=tf.float32)
         if self.constrain_hazards:
-            hazards_lidar = observations_exp[:, self.sensor_offset_table['hazards_lidar']]
+            hazards_lidar = observations[:, self.sensor_offset_table['hazards_lidar']]
             hazards_dist = self.closest_distance(hazards_lidar)
-            cost += hazards_dist <= self.hazards_size
-            # print("fake hazards ", hazards_dist)
+            cost += tf.cast(tf.less_equal(hazards_dist, self.hazards_size), dtype=tf.float32)
         if self.constrain_pillars:
-            pillars_lidar = observations_exp[:, self.sensor_offset_table['pillars_lidar']]
+            pillars_lidar = observations[:, self.sensor_offset_table['pillars_lidar']]
             pillars_dist = self.closest_distance(pillars_lidar)
-            cost += (pillars_dist <= self.pillars_size)
+            cost += tf.cast(tf.less_equal(pillars_dist, self.hazards_size), dtype=tf.float32)
         if self.constrain_gremlins:
-            gremlins_lidar = observations_exp[:, self.sensor_offset_table['gremlins_lidar']]
+            gremlins_lidar = observations[:, self.sensor_offset_table['gremlins_lidar']]
             gremlins_dist = self.closest_distance(gremlins_lidar)
-            cost += (hazards_dist <= self.gremlins_lidar)
-        # Displacement processing
-        if self.constrain_vases and self.vases_displace_cost:
-            print("Should take care of this vases displacement.")
-        # Velocity processing
-        if self.constrain_vases and self.vases_velocity_cost:
-            print("Should take care of this vases velocity.")
-        # Optionally remove shaping from reward functions.
+            cost += tf.cast(tf.less_equal(gremlins_dist, self.hazards_size), dtype=tf.float32)
         if self.constrain_indicator:
-            return int(cost > 0.0)
+            return tf.cast(tf.greater(cost, 0.0), dtype=tf.float32)
         return cost
 
     def goal_distance_metric(self, observations):
@@ -136,9 +124,9 @@ class SafetyGymStateScorer(object):
         if self.lidar_max_dist is None:
             return -tf.math.log(tf.reduce_max(lidar_measurement, axis=1) + 1e-100) / self.lidar_exp_gain
         else:
-            return tf.minimum(
+            return tf.clip_by_value(
                 self.lidar_max_dist - tf.reduce_max(lidar_measurement, axis=1) * self.lidar_max_dist - eps,
-                self.lidar_max_dist)
+                0.0, self.lidar_max_dist)
 
     def average_direction(self, lidar_measurement):
         angles = (tf.range(self.lidar_num_bins) + 0.5) * 2.0 * np.pi / self.lidar_num_bins
@@ -152,4 +140,4 @@ class SafetyGymStateScorer(object):
         )
         averaged_x = tf.reduce_sum(tf.linalg.tensordot(x, lidar_measurement + 1e-7, axis=1))
         averaged_y = tf.reduce_sum(tf.linalg.tensordot(y, lidar_measurement + 1e-7, axis=1))
-        return np.stack((averaged_x, averaged_y), axis=1)
+        return tf.stack((averaged_x, averaged_y), axis=1)

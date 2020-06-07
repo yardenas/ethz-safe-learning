@@ -18,6 +18,7 @@ class BaseAgent(object):
                  ):
         self.replay_buffer = rb.ReplayBuffer(replay_buffer_size, add_observation_noise)
         self.action_repeat = action_repeat
+        assert self.action_repeat, "Action repeat should be at least 1."
         self.training_report = dict()
         self.total_training_steps = 0
 
@@ -67,10 +68,10 @@ class BaseAgent(object):
         steps = 0
         pbar = tqdm(total=max_trajectory_length)
         while steps < max_trajectory_length:
-            action_sequence = policy.generate_action(observation)
-            for i in range(min(self.action_repeat, action_sequence.shape[0])):
+            action = policy.generate_action(observation)
+            for i in range(self.action_repeat):
                 images.append(environment.render(mode='rgb_array'))
-                observation, _, done, _ = environment.step(action_sequence[i, ...].squeeze())
+                observation, _, done, _ = environment.step(action)
                 steps += 1
                 pbar.update(1)
                 if done or steps == max_trajectory_length:
@@ -110,24 +111,27 @@ class BaseAgent(object):
         steps = 0
         rollout_done = False
         while not rollout_done:
-            action_sequence = policy.generate_action(observation)
-            for i in range(min(self.action_repeat, action_sequence.shape[0])):
-                observations.append(observation)
-                actions.append(action_sequence[i, ...].squeeze())
+            action = policy.generate_action(observation)
+            observations.append(observation)
+            actions.append(action)
+            repeat_rewards = 0.0
+            for _ in range(self.action_repeat):
                 observation, reward, done, info = \
-                    environment.step(action_sequence[i, ...].squeeze())
+                    environment.step(action)
                 steps += 1
-                next_observations.append(observation)
-                rewards.append(reward)
-                infos.append(info)
+                repeat_rewards += reward
                 rollout_done = (steps == max_trajectory_length) or done
-                terminals.append(done)
                 if info.get('goal_met', False):
                     print("hellow")
-                    print(next_observations[-1][5] - observations[-1][5])
+                    print(observation[5] - observations[-1][5])
+                    break
                 pbar.update(1)
                 if rollout_done:
                     break
+            next_observations.append(observation)
+            rewards.append(repeat_rewards)
+            infos.append(info)
+            terminals.append(rollout_done)
         # A more safe assert would be to check all of the actions, but compute time is not cheap.
         # (Although premature optimization is the root of all evil.)
         assert actions[0].shape == environment.action_space.shape, "Policy produces wrong actions shape."

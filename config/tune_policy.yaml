@@ -1,6 +1,6 @@
 options:
   trainer_options:
-    video_log_frequency: 10
+    video_log_frequency: -1
     log_frequency: 1
     max_video_length: 1000
     eval_interaction_steps: 25
@@ -8,8 +8,8 @@ options:
     training_logger_params:
       fps: 28
   seed: 1
-  train_iterations: 100
+  train_iterations: 60
   agent: mbrl_agent
-  environment: MbrlSafexp-PointSimpleGoal1-v0
+  environment: MbrlSafexp-PointGoal0-v0
 
 

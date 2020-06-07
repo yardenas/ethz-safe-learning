@@ -2,18 +2,22 @@ policies:
   cem_mpc:
     horizon: 10
     iterations: 10
-    objective: TODOYARDEN
     smoothing: 0.0
     n_samples: 150
     n_elite: 30
     particles: 5
     stddev_threshold: 0.25
     noise_stddev: 0.1
-  mppi_mpc:
+  safe_cem_mpc:
     horizon: 10
-    objective: TODOYARDEN
-    n_samples: 1000
+    iterations: 10
+    smoothing: 0.0
+    n_samples: 150
+    n_elite: 30
+    particles: 15
+    stddev_threshold: 0.25
+    noise_stddev: 0.1
+    posterior_mean_threashold: 0.3
   random_shooting_mpc:
     horizon: 10
-    objective: TODOYARDEN
     n_samples: 1000

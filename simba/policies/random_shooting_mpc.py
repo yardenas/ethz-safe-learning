@@ -31,7 +31,7 @@ class RandomShootingMpc(MpcPolicy):
         trajectories = self.model.simulate_trajectories(
             tf.broadcast_to(state, (action_sequences_batches.shape[0], state.shape[0])), action_sequences_batches
         )
-        cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batches)
+        cumulative_rewards = self.compute_objective(trajectories, action_sequences_batches)
         scores = self.objective(cumulative_rewards)
         best_trajectory_id = tf.argmax(scores)
         return action_sequences[best_trajectory_id, 0, :]

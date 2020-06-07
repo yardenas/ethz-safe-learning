@@ -10,7 +10,7 @@ class RandomMpc(PolicyBase):
         self.action_space = action_space
 
     def generate_action(self, state):
-        return np.expand_dims(np.random.uniform(self.action_space.low, self.action_space.high), axis=0)
+        return np.random.uniform(self.action_space.low, self.action_space.high)
 
     def build(self):
         pass

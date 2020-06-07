@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 from simba.policies.mpc_policy import MpcPolicy
-from simba.infrastructure.logging_utils import logger
 
 
 class CemMpc(MpcPolicy):
@@ -10,7 +9,6 @@ class CemMpc(MpcPolicy):
                  environment,
                  horizon,
                  iterations,
-                 objective,
                  smoothing,
                  n_samples,
                  n_elite,
@@ -21,7 +19,6 @@ class CemMpc(MpcPolicy):
             model,
             environment,
             horizon,
-            objective,
             n_samples,
             particles
         )
@@ -32,7 +29,8 @@ class CemMpc(MpcPolicy):
         self.noise_stddev = noise_stddev
 
     def generate_action(self, state):
-        return self.do_generate_action(tf.constant(state, dtype=tf.float32)).numpy()
+        action, _ = self.do_generate_action(tf.constant(state, dtype=tf.float32))
+        return action.numpy()
 
     @tf.function
     def do_generate_action(self, state):
@@ -40,7 +38,7 @@ class CemMpc(MpcPolicy):
         action_dim = self.action_space.shape[0]
         mu = tf.broadcast_to(mu, (self.horizon, action_dim))
         sigma = tf.broadcast_to(sigma, (self.horizon, action_dim))
-        best_so_far = tf.zeros((self.horizon, action_dim), dtype=tf.float32)
+        best_so_far = tf.zeros((action_dim,), dtype=tf.float32)
         best_so_far_score = -np.inf * tf.ones((), dtype=tf.float32)
         for _ in tf.range(self.iterations):
             action_sequences = tf.random.normal(
@@ -54,14 +52,11 @@ class CemMpc(MpcPolicy):
             trajectories = self.model.unfold_sequences(
                 tf.broadcast_to(state, (action_sequences_batch.shape[0], state.shape[0])), action_sequences_batch
             )
-            if tf.reduce_any(tf.greater(trajectories, 1e3)):
-                tf.print("Not all trajectory values were finite!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            cumulative_rewards = self.compute_cumulative_rewards(trajectories, action_sequences_batch)
-            scores = self.objective(cumulative_rewards)
+            scores = self.compute_objective(trajectories, action_sequences_batch)
             elite_scores, elite = tf.nn.top_k(scores, self.elite, sorted=False)
             best_of_elite = tf.argmax(elite_scores)
             if tf.greater(elite_scores[best_of_elite], best_so_far_score):
-                best_so_far = action_sequences[elite[best_of_elite], ...]
+                best_so_far = action_sequences[elite[best_of_elite], 0, ...]
                 best_so_far_score = elite_scores[best_of_elite]
             elite_actions = tf.gather(action_sequences, elite, axis=0)
             mean, variance = tf.nn.moments(elite_actions, axes=0)
@@ -70,4 +65,4 @@ class CemMpc(MpcPolicy):
             sigma = self.smoothing * sigma + (1.0 - self.smoothing) * stddev
             if tf.less_equal(tf.reduce_mean(sigma), self.stddev_threshold):
                 break
-        return best_so_far + tf.random.normal(best_so_far.shape, stddev=self.noise_stddev)
+        return best_so_far + tf.random.normal(best_so_far.shape, stddev=self.noise_stddev), best_so_far_score
