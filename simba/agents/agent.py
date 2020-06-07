@@ -115,11 +115,13 @@ class BaseAgent(object):
             observations.append(observation)
             actions.append(action)
             repeat_rewards = 0.0
+            repeat_costs = 0.0
             for _ in range(self.action_repeat):
                 observation, reward, done, info = \
                     environment.step(action)
                 steps += 1
                 repeat_rewards += reward
+                repeat_costs += info.get('cost', 0.0)
                 rollout_done = (steps == max_trajectory_length) or done
                 if info.get('goal_met', False):
                     print("hellow")
@@ -128,6 +130,7 @@ class BaseAgent(object):
                 pbar.update(1)
                 if rollout_done:
                     break
+            info['cost'] = repeat_costs
             next_observations.append(observation)
             rewards.append(repeat_rewards)
             infos.append(info)
