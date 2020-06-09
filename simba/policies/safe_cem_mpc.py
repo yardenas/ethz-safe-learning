@@ -85,7 +85,7 @@ class SafeCemMpc(CemMpc):
         done_trajectories = tf.zeros((self.n_samples * self.particles,), dtype=tf.bool)
         safe_trajectories = tf.ones((self.n_samples,), dtype=tf.bool)
         horizon = trajectories.shape[1]
-        mu, sigma = tf.linspace(0.5, 0.4, horizon - 1), tf.linspace(0.285, 0.285, horizon - 1)
+        mu, sigma = tf.linspace(0.5, 0.4, horizon - 1), tf.linspace(0.29, 0.29, horizon - 1)
         for t in range(horizon - 1):
             s_t = trajectories[:, t, ...]
             s_t_1 = trajectories[:, t + 1, ...]
@@ -93,7 +93,7 @@ class SafeCemMpc(CemMpc):
             reward, dones = self.reward(s_t, a_t, s_t_1)
             done_trajectories = tf.logical_or(
                 dones, done_trajectories)
-            cost = self.cost(s_t, a_t, s_t_1)
+            cost = self.cost(s_t, a_t, s_t_1) * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
             cumulative_costs += cost
             probably_safe = self.bayesian_safety_beta_inference(cost, mu[t], sigma[t])
             safe_trajectories = tf.logical_and(
@@ -102,7 +102,7 @@ class SafeCemMpc(CemMpc):
         if tf.reduce_any(safe_trajectories):
             rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
             trajectories_returns = tf.reduce_mean(rewards_per_sample, axis=0)
-            return tf.where(safe_trajectories, trajectories_returns, -np.inf)
+            return tf.where(safe_trajectories, trajectories_returns, trajectories_returns - 100.0)
         else:
             costs_per_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
             return tf.reduce_mean(-costs_per_sample, axis=0)
@@ -119,7 +119,7 @@ class SafeCemMpc(CemMpc):
         costs_per_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
         return tf.reduce_mean(costs_per_sample, axis=0)
 
-    def bayesian_safety_beta_inference(self, costs, mu=0.5, sigma=0.285):
+    def bayesian_safety_beta_inference(self, costs, mu=0.5, sigma=0.29):
         costs_per_sample = tf.reshape(costs, (self.particles, self.n_samples))
         counts = tf.reduce_sum(costs_per_sample, axis=0)
         # Computing parameters for the prior.
