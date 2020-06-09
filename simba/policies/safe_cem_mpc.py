@@ -36,10 +36,11 @@ class SafeCemMpc(CemMpc):
     def generate_action(self, state):
         action, best_score = self.do_generate_action(tf.constant(state, dtype=tf.float32))
         if best_score == -np.inf:
+            print("No solution found!")
             return self.last_action
             # return self.optimize_for_safety(tf.constant(state, dtype=tf.float32)).numpy()
         else:
-            self.last_action = action
+            # self.last_action = action
             return action.numpy()
 
     @tf.function
@@ -80,10 +81,11 @@ class SafeCemMpc(CemMpc):
 
     def compute_objective(self, trajectories, action_sequences):
         cumulative_rewards = tf.zeros((self.n_samples * self.particles,), dtype=tf.float32)
+        cumulative_costs = tf.zeros((self.n_samples * self.particles,), dtype=tf.float32)
         done_trajectories = tf.zeros((self.n_samples * self.particles,), dtype=tf.bool)
         safe_trajectories = tf.ones((self.n_samples,), dtype=tf.bool)
         horizon = trajectories.shape[1]
-        mu, sigma = tf.linspace(0.5, 0.01, horizon - 1), tf.linspace(0.285, 0.05, horizon - 1)
+        mu, sigma = tf.linspace(0.5, 0.4, horizon - 1), tf.linspace(0.285, 0.285, horizon - 1)
         for t in range(horizon - 1):
             s_t = trajectories[:, t, ...]
             s_t_1 = trajectories[:, t + 1, ...]
@@ -92,13 +94,18 @@ class SafeCemMpc(CemMpc):
             done_trajectories = tf.logical_or(
                 dones, done_trajectories)
             cost = self.cost(s_t, a_t, s_t_1) * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
+            cumulative_costs += cost
             probably_safe = self.bayesian_safety_beta_inference(cost, mu[t], sigma[t])
             safe_trajectories = tf.logical_and(
                 probably_safe, safe_trajectories)
             cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
         rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
         trajectories_returns = tf.reduce_mean(rewards_per_sample, axis=0)
-        return tf.where(safe_trajectories, trajectories_returns, -np.inf)
+        returns_with_safety = tf.where(safe_trajectories, trajectories_returns, -np.inf)
+        if tf.reduce_all(tf.equal(returns_with_safety, -np.inf)):
+            costs_pre_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
+            return tf.reduce_mean(-costs_pre_sample, axis=0)
+        return returns_with_safety
 
     def compute_mean_costs(self, trajectories, action_sequences):
         cumulative_costs = tf.zeros((tf.shape(trajectories)[0],))
