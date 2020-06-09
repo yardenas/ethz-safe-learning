@@ -131,10 +131,6 @@ def main():
                               color)
     if args.visualize:
         plt.show()
-    for horizon_score in horizon_scores:
-        for i, score in enumerate(horizon_score):
-            trainer.training_logger.log_scalar(score, str(i), 0)
-    trainer.training_logger.dump_scalars(experiment_log_dir + '/scores.json')
 
 
 if __name__ == '__main__':
