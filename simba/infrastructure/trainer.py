@@ -52,9 +52,15 @@ class RLTrainer(object):
                                                                     max_trajectory_length)
         eval_return_values = np.array([trajectory['reward'].sum() for
                                        trajectory in evaluation_trajectories])
+        trajectories_infos = [trajectory['info'] for trajectory in evaluation_trajectories]
+        sum_costs = np.asarray([sum(list(map(lambda info: info.get('cost', 0.0), trajectory)))
+                                for trajectory in trajectories_infos])
         return dict(
             training_rl_objective=eval_return_values.mean(),
-            sum_rewards_stddev=eval_return_values.std())
+            sum_rewards_stddev=eval_return_values.std(),
+            sum_costs_mean=sum_costs.mean(),
+            sum_costs_stddev=sum_costs.std(),
+        )
 
     def log(self, report, epoch):
         """
