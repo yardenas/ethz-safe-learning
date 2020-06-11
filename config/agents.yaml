@@ -1,7 +1,7 @@
 agents:
   agent:
     replay_buffer_size: 1000000
-    action_repeat: 5
+    action_repeat: 6
     add_observation_noise: False
   mbrl_agent:
     train_batch_size: 30000
