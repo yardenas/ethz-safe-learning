@@ -34,14 +34,8 @@ class SafeCemMpc(CemMpc):
         self.last_action = tf.zeros((self.action_space.shape[0],), dtype=tf.float32)
 
     def generate_action(self, state):
-        action, best_score = self.do_generate_action(tf.constant(state, dtype=tf.float32))
-        if best_score == -np.inf:
-            print("No solution found!")
-            return self.last_action
-            # return self.optimize_for_safety(tf.constant(state, dtype=tf.float32)).numpy()
-        else:
-            # self.last_action = action
-            return action.numpy()
+        action, _ = self.do_generate_action(tf.constant(state, dtype=tf.float32))
+        return action.numpy()
 
     @tf.function
     def optimize_for_safety(self, state):
@@ -99,13 +93,13 @@ class SafeCemMpc(CemMpc):
             safe_trajectories = tf.logical_and(
                 probably_safe, safe_trajectories)
             cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
-        if tf.reduce_any(safe_trajectories):
-            rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
-            trajectories_returns = tf.reduce_mean(rewards_per_sample, axis=0)
-            return tf.where(safe_trajectories, trajectories_returns, trajectories_returns - 100.0)
-        else:
-            costs_per_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
-            return tf.reduce_mean(-costs_per_sample, axis=0)
+        # if tf.reduce_any(safe_trajectories):
+        #     rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
+        #     trajectories_returns = tf.reduce_mean(rewards_per_sample, axis=0)
+        #     return tf.where(safe_trajectories, trajectories_returns, trajectories_returns - 100.0)
+        # else:
+        costs_per_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
+        return tf.reduce_mean(costs_per_sample, axis=0)
 
     def compute_mean_costs(self, trajectories, action_sequences):
         cumulative_costs = tf.zeros((tf.shape(trajectories)[0],))

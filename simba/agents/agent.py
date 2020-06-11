@@ -119,6 +119,7 @@ class BaseAgent(object):
             for _ in range(self.action_repeat):
                 observation, reward, done, info = \
                     environment.step(action)
+                # environment.render('human')
                 steps += 1
                 repeat_rewards += reward
                 repeat_costs += info.get('cost', 0.0)
