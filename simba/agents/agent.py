@@ -120,14 +120,13 @@ class BaseAgent(object):
                 observation, reward, done, info = \
                     environment.step(action)
                 pbar.update(1)
-                environment.render('human')
+                # environment.render('human')
                 steps += 1
                 repeat_rewards += reward
                 repeat_costs += info.get('cost', 0.0)
                 rollout_done = (steps == max_trajectory_length) or done
                 if info.get('goal_met', False):
                     print("hellow")
-                    print(observation[5] - observations[-1][5])
                     break
                 if rollout_done:
                     break

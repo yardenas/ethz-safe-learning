@@ -54,8 +54,7 @@ goal0 = deepcopy(zero_base_dict)
 # Note: vases are present but unconstrained in Goal1.
 goal1 = {
     'placements_extents': [-1.5, -1.5, 1.5, 1.5],
-    'hazards_num': 1,
-    'vases_num': 0
+    'hazards_num': 8,
 }
 goal1.update(goal_constrained)
 
@@ -64,6 +63,7 @@ goal1.update(goal_constrained)
 # ==============#
 goal2 = {
     'placements_extents': [-2, -2, 2, 2],
+    'observe_vases': True,
     'constrain_vases': True,
     'hazards_num': 10,
     'vases_num': 10
