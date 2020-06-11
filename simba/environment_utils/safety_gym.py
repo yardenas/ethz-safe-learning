@@ -28,32 +28,34 @@ class MbrlSafetyGym(MbrlEnv):
             self.env.config,
             self.sensor_offset_table)
         self.observation_space = Box(np.asarray(low), np.asarray(high), dtype=np.float32)
+        dummy_observation = self.env.reset()
+        assert dummy_observation.shape[0] == self.observation_space.shape[0]
 
     def resolve_observation_limits(self, key, dim):
         if key == 'box_compass':
-            return [-1.0] * self.unwrapped.compass_shape, [1.0] * self.unwrapped.compass_shape
+            return [-1.0] * self.env.compass_shape, [1.0] * self.env.compass_shape
         elif key == 'box_lidar':
-            return [0.0] * self.unwrapped.lidar_num_bins, [1.0] * self.unwrapped.lidar_num_bins
+            return [0.0] * self.env.lidar_num_bins, [1.0] * self.env.lidar_num_bins
         elif key == 'goal_dist':
             return [-np.inf], [np.inf]
         elif key == 'goal_compass':
-            return [-1.0] * self.unwrapped.compass_shape, [1.0] * self.unwrapped.compass_shape
+            return [-1.0] * self.env.compass_shape, [1.0] * self.env.compass_shape
         elif key == 'goal_lidar':
-            return [0.0] * self.unwrapped.lidar_num_bins, [1.0] * self.unwrapped.lidar_num_bins
+            return [0.0] * self.env.lidar_num_bins, [1.0] * self.env.lidar_num_bins
         elif key == 'remaining':
             return [0.0], [1.0]
         elif key == 'walls_lidar':
-            return [0.0] * self.unwrapped.lidar_num_bins, [1.0] * self.unwrapped.lidar_num_bins
+            return [0.0] * self.env.lidar_num_bins, [1.0] * self.env.lidar_num_bins
         elif key == 'hazards_lidar':
-            return [0.0] * self.unwrapped.lidar_num_bins, [1.0] * self.unwrapped.lidar_num_bins
+            return [0.0] * self.env.lidar_num_bins, [1.0] * self.env.lidar_num_bins
         elif key == 'vases_lidar':
-            return [0.0] * self.unwrapped.lidar_num_bins, [1.0] * self.unwrapped.lidar_num_bins
+            return [0.0] * self.env.lidar_num_bins, [1.0] * self.env.lidar_num_bins
         elif key == 'gremlins_lidar':
-            return [0.0] * self.unwrapped.lidar_num_bins, [1.0] * self.unwrapped.lidar_num_bins
+            return [0.0] * self.env.lidar_num_bins, [1.0] * self.env.lidar_num_bins
         elif key == 'pillars_lidar':
-            return [0.0] * self.unwrapped.lidar_num_bins, [1.0] * self.unwrapped.lidar_num_bins
+            return [0.0] * self.env.lidar_num_bins, [1.0] * self.env.lidar_num_bins
         elif key == 'buttons_lidar':
-            return [0.0] * self.unwrapped.lidar_num_bins, [1.0] * self.unwrapped.lidar_num_bins
+            return [0.0] * self.env.lidar_num_bins, [1.0] * self.env.lidar_num_bins
         else:
             return [-np.inf] * dim, [np.inf] * dim
 
@@ -76,10 +78,10 @@ class MbrlSafetyGym(MbrlEnv):
         if self.observe_goal_lidar:
             observation[self.sensor_offset_table['goal_lidar']] = \
                 1.0 - observation[self.sensor_offset_table['goal_lidar']]
-        print("----Start-----")
-        print("True", self.unwrapped.dist_xy(self.unwrapped.hazards_pos[0][:2]))
-        print("Fake", self._scorer.goal_distance_metric(np.expand_dims(observation, axis=0)))
-        print("----End-----")
+        # print("----Start-----")
+        # print("True", self.env.dist_xy(self.env.hazards_pos[0][:2]))
+        # print("Fake", self._scorer.goal_distance_metric(np.expand_dims(observation, axis=0)))
+        # print("----End-----")
         return observation
 
     def step(self, action):
@@ -156,10 +158,12 @@ class SafetyGymStateScorer(object):
         return cost
 
     def goal_distance_metric(self, observations):
+        if self.observe_goal_lidar:
+            goal_lidar = observations[:, self.sensor_offset_table['goal_lidar']]
+            return self.closest_distance(goal_lidar)
         # Just a fancy way to clip negative values.
-        # return tf.squeeze(tf.nn.relu(observations[:, self.sensor_offset_table['goal_dist']]))
-        hazards_lidar = observations[:, self.sensor_offset_table['hazards_lidar']]
-        return self.closest_distance(hazards_lidar)
+        elif self.observe_goal_dist:
+            return tf.squeeze(tf.nn.relu(observations[:, self.sensor_offset_table['goal_dist']]))
 
     def push_distance_metric(self, observations):
         box_lidar = observations[:, self.sensor_offset_table['box_lidar']]
@@ -173,7 +177,8 @@ class SafetyGymStateScorer(object):
 
     def closest_distance(self, lidar_measurement):
         return tf.reduce_min(
-            tf.clip_by_value(self.lidar_max_dist - self.lidar_max_dist * (1.0 - lidar_measurement), 0.0, self.lidar_max_dist),
+            tf.clip_by_value(self.lidar_max_dist - self.lidar_max_dist * (1.0 - lidar_measurement), 0.0,
+                             self.lidar_max_dist),
             axis=1)
 
     def average_direction(self, lidar_measurement):
