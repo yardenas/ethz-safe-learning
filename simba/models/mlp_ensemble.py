@@ -152,7 +152,7 @@ class MlpEnsemble(tf.Module):
                                           tf.constant(y_batch))
                 losses[step] = loss
                 step += 1
-                if step % 100 == 0:
+                if step % int(self.training_steps / 10) == 0:
                     validation_loss = self.validation_step(validate_inputs, validate_targets).numpy()
                     logger.debug(
                         "Step {} | Training Loss {} | Validation Loss {}".format(step, loss, validation_loss))
