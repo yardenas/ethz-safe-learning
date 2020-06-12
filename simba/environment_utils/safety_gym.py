@@ -66,8 +66,8 @@ class MbrlSafetyGym(MbrlEnv):
         return self._scorer.cost(obs)
 
     def fix_observation(self, observation):
-        # Predicting distances in exponential-space seems to really hold back the model from learning anything.
         if self.observe_goal_dist:
+            # Predicting distances in exponential-space seems to really hold back the model from learning anything.
             observation[self.sensor_offset_table['goal_dist']] = \
                 -np.log(observation[self.sensor_offset_table['goal_dist']])
         if self.observe_sensors:
@@ -78,8 +78,21 @@ class MbrlSafetyGym(MbrlEnv):
         if self.observe_goal_lidar:
             observation[self.sensor_offset_table['goal_lidar']] = \
                 1.0 - observation[self.sensor_offset_table['goal_lidar']]
+        if self.observe_vases:
+            observation[self.sensor_offset_table['vases_lidar']] = \
+                1.0 - observation[self.sensor_offset_table['vases_lidar']]
+        if self.observe_pillars:
+            observation[self.sensor_offset_table['pillars_lidar']] = \
+                1.0 - observation[self.sensor_offset_table['pillars_lidar']]
+        if self.observe_buttons:
+            observation[self.sensor_offset_table['buttons_lidar']] = \
+                1.0 - observation[self.sensor_offset_table['buttons_lidar']]
+        if self.observe_gremlins:
+            observation[self.sensor_offset_table['gremlins_lidar']] = \
+                1.0 - observation[self.sensor_offset_table['gremlins_lidar']]
         # print("----Start-----")
-        # print("True", self.env.dist_xy(self.env.hazards_pos[0][:2]))
+        # true_closest = min(map(lambda pos: self.env.dist_xy(pos[:2]), self.env.hazards_pos))
+        # print("True", true_closest)
         # print("Fake", self._scorer.goal_distance_metric(np.expand_dims(observation, axis=0)))
         # print("----End-----")
         return observation
@@ -106,7 +119,7 @@ class SafetyGymStateScorer(object):
         if self.task == 'goal':
             dist_goal = self.goal_distance_metric(observations)
             next_dist_goal = self.goal_distance_metric(next_observations)
-            goal_achieved = tf.less_equal(dist_goal, self.goal_size - 0.1)
+            goal_achieved = tf.less_equal(dist_goal, self.goal_size * 0.8)
             reward += (dist_goal - next_dist_goal) * self.reward_distance + tf.cast(goal_achieved,
                                                                                     tf.float32) * self.reward_goal
         # Distance from robot to box
@@ -140,19 +153,19 @@ class SafetyGymStateScorer(object):
         if self.constrain_vases:
             vases_lidar = observations[:, self.sensor_offset_table['vases_lidar']]
             vases_dist = self.closest_distance(vases_lidar)
-            cost += tf.cast(tf.less_equal(vases_dist, self.vases_size - 0.025), dtype=tf.float32)
+            cost += tf.cast(tf.less_equal(vases_dist, self.vases_size * 0.8), dtype=tf.float32)
         if self.constrain_hazards:
             hazards_lidar = observations[:, self.sensor_offset_table['hazards_lidar']]
             hazards_dist = self.closest_distance(hazards_lidar)
-            cost += tf.cast(tf.less_equal(hazards_dist, self.hazards_size - 0.05), dtype=tf.float32)
+            cost += tf.cast(tf.less_equal(hazards_dist, self.hazards_size * 0.8), dtype=tf.float32)
         if self.constrain_pillars:
             pillars_lidar = observations[:, self.sensor_offset_table['pillars_lidar']]
             pillars_dist = self.closest_distance(pillars_lidar)
-            cost += tf.cast(tf.less_equal(pillars_dist, self.pillars_size - 0.05), dtype=tf.float32)
+            cost += tf.cast(tf.less_equal(pillars_dist, self.pillars_size * 0.8), dtype=tf.float32)
         if self.constrain_gremlins:
             gremlins_lidar = observations[:, self.sensor_offset_table['gremlins_lidar']]
             gremlins_dist = self.closest_distance(gremlins_lidar)
-            cost += tf.cast(tf.less_equal(gremlins_dist, self.gremlins_size - 0.025), dtype=tf.float32)
+            cost += tf.cast(tf.less_equal(gremlins_dist, self.gremlins_size * 0.8), dtype=tf.float32)
         if self.constrain_indicator:
             return tf.cast(tf.greater(cost, 0.0), dtype=tf.float32)
         return cost
@@ -164,6 +177,8 @@ class SafetyGymStateScorer(object):
         # Just a fancy way to clip negative values.
         elif self.observe_goal_dist:
             return tf.squeeze(tf.nn.relu(observations[:, self.sensor_offset_table['goal_dist']]))
+        else:
+            raise NotImplementedError
 
     def push_distance_metric(self, observations):
         box_lidar = observations[:, self.sensor_offset_table['box_lidar']]
