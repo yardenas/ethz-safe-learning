@@ -75,6 +75,7 @@ class MlpEnsemble(tf.Module):
                  batch_size,
                  validation_split,
                  learning_rate,
+                 learning_rate_decay,
                  training_steps,
                  mlp_params):
         super().__init__()
@@ -84,13 +85,14 @@ class MlpEnsemble(tf.Module):
         self.batch_size = batch_size
         self.validation_split = validation_split
         self.learning_rate = learning_rate
+        self.learning_rate_decay = learning_rate_decay
         self.training_steps = training_steps
         self.mlp_params = mlp_params
         self.ensemble = [GaussianDistMlp(inputs_dim=self.inputs_dim, outputs_dim=self.outputs_dim, **self.mlp_params)
                          for _ in range(self.ensemble_size)]
         self.optimizer = tf.keras.optimizers.Adam(self.learning_rate,
-                                                  clipvalue=1.0)
-        # epsilon=1e-5)
+                                                  clipvalue=1.0,
+                                                  epsilon=1e-5)
 
     def build(self):
         pass
@@ -142,6 +144,7 @@ class MlpEnsemble(tf.Module):
         train_inputs, train_targets, validate_inputs, validate_targets = self.split_train_validate(inputs, targets)
         n_batches = int(np.ceil(train_inputs.shape[0] / self.batch_size))
         step = 0
+        self.learning_rate *= self.learning_rate_decay
         while step < self.training_steps:
             shuffles_per_mlp = np.array([np.random.permutation(train_inputs.shape[0])
                                          for _ in range(self.ensemble_size)])

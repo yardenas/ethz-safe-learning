@@ -174,8 +174,8 @@ class SafetyGymStateScorer(object):
         if self.observe_goal_lidar:
             goal_lidar = observations[:, self.sensor_offset_table['goal_lidar']]
             return self.closest_distance(goal_lidar)
-        # Just a fancy way to clip negative values.
         elif self.observe_goal_dist:
+            # Just a fancy way to clip negative values.
             return tf.squeeze(tf.nn.relu(observations[:, self.sensor_offset_table['goal_dist']]))
         else:
             raise NotImplementedError
