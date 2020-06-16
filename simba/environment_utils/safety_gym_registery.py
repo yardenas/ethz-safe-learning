@@ -13,10 +13,6 @@ bench_base = SafexpEnvBase('Simple', {'observe_goal_dist': False,
                                       'observe_box_lidar': True,
                                       'lidar_max_dist': 3,
                                       'lidar_num_bins': 5,
-                                      # 'robot_locations': [[0.0, 0.0]],
-                                      # 'hazards_locations': [[-2.5, 0.0]],
-                                      # 'goal_locations': [[2.5, 0.0]],
-                                      # 'robot_rot': 0
                                       })
 
 zero_base_dict = {'placements_extents': [-1, -1, 1, 1]}
