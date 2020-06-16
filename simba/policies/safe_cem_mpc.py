@@ -93,13 +93,13 @@ class SafeCemMpc(CemMpc):
             safe_trajectories = tf.logical_and(
                 probably_safe, safe_trajectories)
             cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
-        # if tf.reduce_any(safe_trajectories):
-        #     rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
-        #     trajectories_returns = tf.reduce_mean(rewards_per_sample, axis=0)
-        #     return tf.where(safe_trajectories, trajectories_returns, trajectories_returns - 100.0)
-        # else:
-        costs_per_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
-        return tf.reduce_mean(costs_per_sample, axis=0)
+        if tf.reduce_any(safe_trajectories):
+            rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
+            trajectories_returns = tf.reduce_mean(rewards_per_sample, axis=0)
+            return tf.where(safe_trajectories, trajectories_returns, trajectories_returns - 100.0)
+        else:
+            costs_per_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
+            return tf.reduce_mean(-costs_per_sample, axis=0)
 
     def compute_mean_costs(self, trajectories, action_sequences):
         cumulative_costs = tf.zeros((tf.shape(trajectories)[0],))
