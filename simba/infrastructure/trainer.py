@@ -52,9 +52,15 @@ class RLTrainer(object):
                                                                     max_trajectory_length)
         eval_return_values = np.array([trajectory['reward'].sum() for
                                        trajectory in evaluation_trajectories])
+        trajectories_infos = [trajectory['info'] for trajectory in evaluation_trajectories]
+        sum_costs = np.asarray([sum(list(map(lambda info: info.get('cost', 0.0), trajectory)))
+                                for trajectory in trajectories_infos])
         return dict(
             training_rl_objective=eval_return_values.mean(),
-            sum_rewards_stddev=eval_return_values.std())
+            sum_rewards_stddev=eval_return_values.std(),
+            sum_costs_mean=sum_costs.mean(),
+            sum_costs_stddev=sum_costs.std(),
+        )
 
     def log(self, report, epoch):
         """
@@ -71,22 +77,22 @@ class RLTrainer(object):
             mean_sum_costs=sum_costs.mean()
         ))
         losses = report.pop('losses')
-        for i, loss in enumerate(losses):
-            self.training_logger.log_scalars(
-                scalar_dict={'loss': loss},
-                group_name='losses/' + str(epoch),
-                step=i,
-            )
+        # for i, loss in enumerate(losses):
+        #     self.training_logger.log_scalars(
+        #         scalar_dict={'loss': loss},
+        #         group_name='losses/' + str(epoch),
+        #         step=i,
+        #     )
         predicted_trajectory, ground_truth_trajectory = report.pop('predicted_states_vs_ground_truth')
-        for i, (predicted_state, ground_truth_state) in \
-                enumerate(zip(predicted_trajectory.transpose(), ground_truth_trajectory.transpose())):
-            for t, (predicted_value, ground_truth_value) in enumerate(zip(predicted_state, ground_truth_state)):
-                self.training_logger.log_scalars(
-                    scalar_dict={'ground truth': ground_truth_value,
-                                 'predicted': predicted_value.mean()},
-                    group_name='states/epoch/' + str(epoch) + '/state_id/' + str(i),
-                    step=t
-                )
+        # for i, (predicted_state, ground_truth_state) in \
+        #         enumerate(zip(predicted_trajectory.transpose(), ground_truth_trajectory.transpose())):
+        #     for t, (predicted_value, ground_truth_value) in enumerate(zip(predicted_state, ground_truth_state)):
+        #         self.training_logger.log_scalars(
+        #             scalar_dict={'ground truth': ground_truth_value,
+        #                          'predicted': predicted_value.mean()},
+        #             group_name='states/epoch/' + str(epoch) + '/state_id/' + str(i),
+        #             step=t
+        #         )
         training_step = report.pop('total_training_steps')
         for key, value in report.items():
             self.training_logger.log_scalar(value, key, training_step)

@@ -1,17 +1,22 @@
 from copy import deepcopy
+
 from safety_gym.envs.suite import SafexpEnvBase
 
 # =======================================#
 # Common Environment Parameter Defaults #
 # =======================================#
 
-bench_base = SafexpEnvBase('Simple', {'observe_goal_dist': True,
-                                      'observe_goal_comp': True,
+bench_base = SafexpEnvBase('Simple', {'observe_goal_dist': False,
+                                      'observe_goal_comp': False,
                                       'observe_box_comp': True,
-                                      'observe_goal_lidar': False,
+                                      'observe_goal_lidar': True,
                                       'observe_box_lidar': True,
                                       'lidar_max_dist': 3,
-                                      'lidar_num_bins': 8
+                                      'lidar_num_bins': 5,
+                                      # 'robot_locations': [[0.0, 0.0]],
+                                      # 'hazards_locations': [[-2.5, 0.0]],
+                                      # 'goal_locations': [[2.5, 0.0]],
+                                      # 'robot_rot': 0
                                       })
 
 zero_base_dict = {'placements_extents': [-1, -1, 1, 1]}
@@ -35,7 +40,7 @@ goal_all = {
 goal_constrained = {
     'constrain_hazards': True,
     'observe_hazards': True,
-    'observe_vases': True,
+    'observe_vases': False,
 }
 
 # ==============#
@@ -50,7 +55,6 @@ goal0 = deepcopy(zero_base_dict)
 goal1 = {
     'placements_extents': [-1.5, -1.5, 1.5, 1.5],
     'hazards_num': 8,
-    'vases_num': 1
 }
 goal1.update(goal_constrained)
 
@@ -59,6 +63,7 @@ goal1.update(goal_constrained)
 # ==============#
 goal2 = {
     'placements_extents': [-2, -2, 2, 2],
+    'observe_vases': True,
     'constrain_vases': True,
     'hazards_num': 10,
     'vases_num': 10

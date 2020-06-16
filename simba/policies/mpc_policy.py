@@ -32,9 +32,9 @@ class MpcPolicy(PolicyBase):
             s_t_1 = trajectories[:, t + 1, ...]
             a_t = action_sequences[:, t, ...]
             reward, dones = self.reward(s_t, a_t, s_t_1)
+            cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
             done_trajectories = tf.logical_or(
                 dones, done_trajectories)
-            cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
         rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
         return tf.reduce_mean(rewards_per_sample, axis=0)
 

@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
+
 from simba.infrastructure.logging_utils import logger
 
 
@@ -67,6 +68,27 @@ def negative_log_likelihood(y_true, mu, var):
            0.5 * tf.reduce_mean(tf.math.divide(tf.square(mu - y_true), var))
 
 
+class EpochLearningRateSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self,
+                 init_learning_rate,
+                 training_steps_per_epoch,
+                 train_epochs):
+        super().__init__()
+        self._learning_rate = tf.constant(init_learning_rate, tf.float32)
+        self._train_epochs = tf.constant(train_epochs, tf.float32)
+        self._training_steps_per_epoch = tf.constant(training_steps_per_epoch, tf.int32)
+
+    def __call__(self, step):
+        train_epochs_so_far = tf.floor(tf.cast(step, tf.int32) / self._training_steps_per_epoch)
+        return tf.maximum(self._learning_rate * (1.0 - tf.cast(train_epochs_so_far, tf.float32) / self._train_epochs),
+                          0.0)
+
+    def get_config(self):
+        return dict(_learning_rate=self._learning_rate,
+                    _train_epochs=self._train_epochs,
+                    _training_steps_per_epoch=self._training_steps_per_epoch)
+
+
 class MlpEnsemble(tf.Module):
     def __init__(self,
                  inputs_dim,
@@ -75,22 +97,25 @@ class MlpEnsemble(tf.Module):
                  batch_size,
                  validation_split,
                  learning_rate,
+                 learning_rate_schedule,
                  training_steps,
-                 mlp_params):
+                 mlp_params,
+                 train_epochs):
         super().__init__()
         self.inputs_dim = inputs_dim
         self.outputs_dim = outputs_dim
         self.ensemble_size = ensemble_size
         self.batch_size = batch_size
         self.validation_split = validation_split
-        self.learning_rate = learning_rate
         self.training_steps = training_steps
         self.mlp_params = mlp_params
         self.ensemble = [GaussianDistMlp(inputs_dim=self.inputs_dim, outputs_dim=self.outputs_dim, **self.mlp_params)
                          for _ in range(self.ensemble_size)]
-        self.optimizer = tf.keras.optimizers.Adam(self.learning_rate,
-                                                  clipvalue=1.0)
-        # epsilon=1e-5)
+        self.optimizer = tf.keras.optimizers.Adam(
+            EpochLearningRateSchedule(learning_rate, training_steps, train_epochs)
+            if learning_rate_schedule else learning_rate,
+            clipvalue=1.0,
+            epsilon=1e-5)
 
     def build(self):
         pass
@@ -110,12 +135,14 @@ class MlpEnsemble(tf.Module):
     @tf.function
     def training_step(self, inputs, targets):
         loss = 0.0
-        for i, mlp in enumerate(self.ensemble):
-            with tf.GradientTape() as tape:
+        ensemble_trainable_variables = []
+        with tf.GradientTape() as tape:
+            for i, mlp in enumerate(self.ensemble):
                 mu, var = mlp(inputs[i, ...], training=tf.constant(True))
                 loss += negative_log_likelihood(targets[i, ...], mu, var) / self.ensemble_size
-                grads = tape.gradient(loss, mlp.trainable_variables)
-                self.optimizer.apply_gradients(zip(grads, mlp.trainable_variables))
+                ensemble_trainable_variables += mlp.trainable_variables
+            grads = tape.gradient(loss, ensemble_trainable_variables)
+            self.optimizer.apply_gradients(zip(grads, ensemble_trainable_variables))
         return loss
 
     @tf.function(
@@ -152,7 +179,7 @@ class MlpEnsemble(tf.Module):
                                           tf.constant(y_batch))
                 losses[step] = loss
                 step += 1
-                if step % 100 == 0:
+                if step % int(self.training_steps / 10) == 0:
                     validation_loss = self.validation_step(validate_inputs, validate_targets).numpy()
                     logger.debug(
                         "Step {} | Training Loss {} | Validation Loss {}".format(step, loss, validation_loss))
