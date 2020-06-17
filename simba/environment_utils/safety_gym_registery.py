@@ -11,7 +11,7 @@ bench_base = SafexpEnvBase('Simple', {'observe_goal_dist': False,
                                       'observe_box_comp': True,
                                       'observe_goal_lidar': True,
                                       'observe_box_lidar': True,
-                                      'lidar_max_dist': 3,
+                                      'lidar_max_dist': 4,
                                       'lidar_num_bins': 5,
                                       })
 
