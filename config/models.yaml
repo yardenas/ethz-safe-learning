@@ -1,6 +1,6 @@
 models:
   mlp_ensemble:
-    ensemble_size: 10
+    ensemble_size: 5
     batch_size: 64
     validation_split: 0.2
     learning_rate: 0.00025
