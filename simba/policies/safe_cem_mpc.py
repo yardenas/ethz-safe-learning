@@ -89,7 +89,7 @@ class SafeCemMpc(CemMpc):
                 dones, done_trajectories)
             cost = self.cost(s_t, a_t, s_t_1) * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
             cumulative_costs += cost
-            probably_safe = self.bayesian_safety_beta_inference(cost, mu[0], sigma[0])
+            probably_safe = self.bayesian_safety_beta_inference(cost, mu[t], sigma[t])
             safe_trajectories = tf.logical_and(
                 probably_safe, safe_trajectories)
             cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
