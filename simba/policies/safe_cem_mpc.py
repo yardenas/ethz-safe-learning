@@ -79,7 +79,7 @@ class SafeCemMpc(CemMpc):
         done_trajectories = tf.zeros((self.n_samples * self.particles,), dtype=tf.bool)
         safe_trajectories = tf.ones((self.n_samples,), dtype=tf.bool)
         horizon = trajectories.shape[1]
-        mu, sigma = tf.linspace(0.25, 0.1, horizon - 1), tf.linspace(0.1, 0.1, horizon - 1)
+        mu, sigma = tf.linspace(0.5, 0.25, horizon - 1), tf.linspace(0.25, 0.25, horizon - 1)
         for t in range(horizon - 1):
             s_t = trajectories[:, t, ...]
             s_t_1 = trajectories[:, t + 1, ...]
@@ -94,10 +94,8 @@ class SafeCemMpc(CemMpc):
                 probably_safe, safe_trajectories)
             cumulative_rewards += reward * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
         rewards_per_sample = tf.reshape(cumulative_rewards, (self.particles, self.n_samples))
-        costs_per_sample = tf.reshape(cumulative_costs, (self.particles, self.n_samples))
-        trajectories_costs = tf.reduce_mean(costs_per_sample, axis=0)
         trajectories_returns = tf.reduce_mean(rewards_per_sample, axis=0)
-        return trajectories_returns - tf.cast(tf.logical_not(safe_trajectories), tf.float32) * 100
+        return trajectories_returns - tf.cast(tf.logical_not(safe_trajectories), tf.float32) * 100.0
 
     def compute_mean_costs(self, trajectories, action_sequences):
         cumulative_costs = tf.zeros((tf.shape(trajectories)[0],))
