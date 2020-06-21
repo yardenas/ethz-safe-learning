@@ -6,7 +6,7 @@ options:
     eval_interaction_steps: 25
     eval_episode_length: 25
     training_logger_params:
-      fps: 28
+      fps: 60
   seed: 1
   train_iterations: 100
   agent: mbrl_agent

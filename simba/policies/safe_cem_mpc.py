@@ -75,11 +75,10 @@ class SafeCemMpc(CemMpc):
 
     def compute_objective(self, trajectories, action_sequences):
         cumulative_rewards = tf.zeros((self.n_samples * self.particles,), dtype=tf.float32)
-        cumulative_costs = tf.zeros((self.n_samples * self.particles,), dtype=tf.float32)
         done_trajectories = tf.zeros((self.n_samples * self.particles,), dtype=tf.bool)
         safe_trajectories = tf.ones((self.n_samples,), dtype=tf.bool)
         horizon = trajectories.shape[1]
-        mu, sigma = tf.linspace(0.5, 0.25, horizon - 1), tf.linspace(0.25, 0.25, horizon - 1)
+        mu, sigma = tf.linspace(0.5, 0.5, horizon - 1), tf.linspace(0.25, 0.25, horizon - 1)
         for t in range(horizon - 1):
             s_t = trajectories[:, t, ...]
             s_t_1 = trajectories[:, t + 1, ...]
@@ -88,7 +87,6 @@ class SafeCemMpc(CemMpc):
             done_trajectories = tf.logical_or(
                 dones, done_trajectories)
             cost = self.cost(s_t, a_t, s_t_1) * (1.0 - tf.cast(done_trajectories, dtype=tf.float32))
-            cumulative_costs += cost
             probably_safe = self.bayesian_safety_beta_inference(cost, mu[t], sigma[t])
             safe_trajectories = tf.logical_and(
                 probably_safe, safe_trajectories)
