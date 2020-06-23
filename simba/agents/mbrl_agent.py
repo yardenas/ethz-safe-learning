@@ -49,8 +49,7 @@ class MbrlAgent(BaseAgent):
             masked_observations,
             masked_actions], axis=1
         )
-        losses = self.model.fit(observations_with_actions, masked_next_observations)
-        self.training_report['losses'] = losses
+        self.model.fit(observations_with_actions, masked_next_observations)
 
     def _interact(self, environment):
         if not self.warm:
@@ -93,7 +92,7 @@ class MbrlAgent(BaseAgent):
         trajectories_infos = [trajectory['info'] for trajectory in evaluation_trajectories]
         sum_costs = np.asarray([sum(list(map(lambda info: info.get('cost', 0.0), trajectory)))
                                 for trajectory in trajectories_infos])
-#        self.make_evaluation_metrics(evaluation_trajectories)
+        self.make_evaluation_metrics(evaluation_trajectories)
         self.training_report.update(dict(
             eval_rl_objective=eval_return_values.mean(),
             sum_rewards_stddev=eval_return_values.std(),
@@ -136,5 +135,3 @@ class MbrlAgent(BaseAgent):
                 predicted_states = predicted_states[:, :-1, :]
                 squared_errors.append(((predicted_states.mean(axis=0) - states_split) ** 2).mean(axis=(0, 1)))
         self.training_report['mse'] = np.array(squared_errors).mean()
-        self.training_report['predicted_states_vs_ground_truth'] = (predicted_states.mean(axis=0),
-                                                                    states_split)
