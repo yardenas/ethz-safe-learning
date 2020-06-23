@@ -76,7 +76,7 @@ class RLTrainer(object):
             sum_rewards_stddev=train_return_values.std(),
             mean_sum_costs=sum_costs.mean()
         ))
-        #losses = report.pop('losses')
+        losses = report.pop('losses')
         # for i, loss in enumerate(losses):
         #     self.training_logger.log_scalars(
         #         scalar_dict={'loss': loss},
