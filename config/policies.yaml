@@ -16,8 +16,8 @@ policies:
     n_elite: 20
     particles: 50
     stddev_threshold: 0.25
-    noise_stddev: 0.001
-    posterior_mean_threashold: 0.125
+    noise_stddev: 0.01
+    posterior_mean_threashold: 0.15
   random_shooting_mpc:
     horizon: 10
     n_samples: 1000

@@ -78,7 +78,7 @@ class SafeCemMpc(CemMpc):
         done_trajectories = tf.zeros((self.n_samples * self.particles,), dtype=tf.bool)
         safe_trajectories = tf.ones((self.n_samples,), dtype=tf.bool)
         horizon = trajectories.shape[1]
-        mu, sigma = tf.linspace(0.5, 0.5, horizon - 1), tf.linspace(0.25, 0.25, horizon - 1)
+        mu, sigma = tf.linspace(0.5, 0.5, horizon - 1), tf.linspace(0.27, 0.27, horizon - 1)
         for t in range(horizon - 1):
             s_t = trajectories[:, t, ...]
             s_t_1 = trajectories[:, t + 1, ...]
