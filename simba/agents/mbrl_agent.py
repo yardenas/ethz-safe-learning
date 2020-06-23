@@ -90,10 +90,14 @@ class MbrlAgent(BaseAgent):
             eval_episode_length)
         eval_return_values = np.array([trajectory['reward'].sum() for
                                        trajectory in evaluation_trajectories])
+        trajectories_infos = [trajectory['info'] for trajectory in evaluation_trajectories]
+        sum_costs = np.asarray([sum(list(map(lambda info: info.get('cost', 0.0), trajectory)))
+                                for trajectory in trajectories_infos])
 #        self.make_evaluation_metrics(evaluation_trajectories)
         self.training_report.update(dict(
             eval_rl_objective=eval_return_values.mean(),
             sum_rewards_stddev=eval_return_values.std(),
+            eval_mean_sum_costs=sum_costs.mean(),
         ))
         return self.training_report
 
