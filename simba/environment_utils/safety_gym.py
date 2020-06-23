@@ -153,19 +153,19 @@ class SafetyGymStateScorer(object):
         if self.constrain_vases:
             vases_lidar = observations[:, self.sensor_offset_table['vases_lidar']]
             vases_dist = self.closest_distance(vases_lidar)
-            cost += tf.cast(tf.less_equal(vases_dist, self.vases_size * 0.8), dtype=tf.float32)
+            cost += tf.cast(tf.less_equal(vases_dist, self.vases_size), dtype=tf.float32)
         if self.constrain_hazards:
             hazards_lidar = observations[:, self.sensor_offset_table['hazards_lidar']]
             hazards_dist = self.closest_distance(hazards_lidar)
-            cost += tf.cast(tf.less_equal(hazards_dist, self.hazards_size * 0.8), dtype=tf.float32)
+            cost += tf.cast(tf.less_equal(hazards_dist, self.hazards_size), dtype=tf.float32)
         if self.constrain_pillars:
             pillars_lidar = observations[:, self.sensor_offset_table['pillars_lidar']]
             pillars_dist = self.closest_distance(pillars_lidar)
-            cost += tf.cast(tf.less_equal(pillars_dist, self.pillars_size * 0.8), dtype=tf.float32)
+            cost += tf.cast(tf.less_equal(pillars_dist, self.pillars_size), dtype=tf.float32)
         if self.constrain_gremlins:
             gremlins_lidar = observations[:, self.sensor_offset_table['gremlins_lidar']]
             gremlins_dist = self.closest_distance(gremlins_lidar)
-            cost += tf.cast(tf.less_equal(gremlins_dist, self.gremlins_size * 0.8), dtype=tf.float32)
+            cost += tf.cast(tf.less_equal(gremlins_dist, self.gremlins_size), dtype=tf.float32)
         if self.constrain_indicator:
             return tf.cast(tf.greater(cost, 0.0), dtype=tf.float32)
         return cost

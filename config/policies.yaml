@@ -9,15 +9,15 @@ policies:
     stddev_threshold: 0.25
     noise_stddev: 0.001
   safe_cem_mpc:
-    horizon: 10
-    iterations: 10
+    horizon: 8
+    iterations: 9
     smoothing: 0.0
-    n_samples: 150
-    n_elite: 30
-    particles: 5
+    n_samples: 500
+    n_elite: 20
+    particles: 45
     stddev_threshold: 0.25
-    noise_stddev: 0.1
-    posterior_mean_threashold: 0.33
+    noise_stddev: 0.01
+    posterior_mean_threashold: 0.15
   random_shooting_mpc:
     horizon: 10
     n_samples: 1000

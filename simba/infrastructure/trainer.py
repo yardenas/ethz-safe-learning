@@ -83,7 +83,7 @@ class RLTrainer(object):
         #         group_name='losses/' + str(epoch),
         #         step=i,
         #     )
-        predicted_trajectory, ground_truth_trajectory = report.pop('predicted_states_vs_ground_truth')
+        #predicted_trajectory, ground_truth_trajectory = report.pop('predicted_states_vs_ground_truth')
         # for i, (predicted_state, ground_truth_state) in \
         #         enumerate(zip(predicted_trajectory.transpose(), ground_truth_trajectory.transpose())):
         #     for t, (predicted_value, ground_truth_value) in enumerate(zip(predicted_state, ground_truth_state)):
