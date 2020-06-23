@@ -70,7 +70,6 @@ class TransitionModel(BaseModel):
             s_t_a_t_scaled = self.scale(tf.concat([s_t, a_t], axis=1))
             # The model predicts s_t_1 - s_t hence we add here the previous state.
             mus, sigmas, d_s_t = self.model(s_t_a_t_scaled)
-            # s_t += mus
             s_t += d_s_t
         trajectories = trajectories.write(horizon, s_t)
         return tf.transpose(trajectories.stack(), [1, 0, 2])
