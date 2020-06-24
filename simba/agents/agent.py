@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import simba.infrastructure.replay_buffer as rb
+import numpy as np
 from simba.infrastructure.logging_utils import logger
 
 
@@ -26,6 +27,11 @@ class BaseAgent(object):
         samples, timesteps_this_batch = self._interact(environment)
         self.total_training_steps += timesteps_this_batch
         self.replay_buffer.store(samples)
+        trajectories_infos = [trajectory['info'] for trajectory in samples]
+        sum_costs = np.asarray([sum(list(map(lambda info: info.get('cost', 0.0), trajectory)))
+                                for trajectory in trajectories_infos])
+        sum_costs_so_far = self.training_report.get('sum_costs', 0.0) + sum_costs
+        self.training_report['sum_costs'] = sum_costs_so_far
         self.training_report.update(dict(
             training_trajectories=samples,
             total_training_steps=self.total_training_steps
