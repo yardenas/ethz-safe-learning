@@ -29,7 +29,7 @@ class BaseAgent(object):
         self.replay_buffer.store(samples)
         trajectories_infos = [trajectory['info'] for trajectory in samples]
         sum_costs = np.asarray([sum(list(map(lambda info: info.get('cost', 0.0), trajectory)))
-                                for trajectory in trajectories_infos])
+                                for trajectory in trajectories_infos]).sum()
         sum_costs_so_far = self.training_report.get('sum_costs', 0.0) + sum_costs
         self.training_report['sum_costs'] = sum_costs_so_far
         self.training_report.update(dict(
