@@ -45,6 +45,7 @@ def visualize_grid_search(horizon_scores,
     for ax, horizon, horizon_score in zip(axes.flatten(), horizons, horizon_scores):
         ax.pcolor(np.reshape(np.asarray(horizon_score), (3, 3)), cmap=cmap,
                   vmin=min_value, vmax=max_value)
+        ax.set_rasterized(True)
         ax.tick_params(axis='both', which='both', length=0)
         ax.set_title(str(horizon))
     save_path = os.path.join(logdir, name + '.svg')

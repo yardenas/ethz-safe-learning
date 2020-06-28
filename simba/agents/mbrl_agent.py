@@ -49,8 +49,7 @@ class MbrlAgent(BaseAgent):
             masked_observations,
             masked_actions], axis=1
         )
-        losses = self.model.fit(observations_with_actions, masked_next_observations)
-        self.training_report['losses'] = losses
+        self.model.fit(observations_with_actions, masked_next_observations)
 
     def _interact(self, environment):
         if not self.warm:
@@ -136,5 +135,3 @@ class MbrlAgent(BaseAgent):
                 predicted_states = predicted_states[:, :-1, :]
                 squared_errors.append(((predicted_states.mean(axis=0) - states_split) ** 2).mean(axis=(0, 1)))
         self.training_report['mse'] = np.array(squared_errors).mean()
-        self.training_report['predicted_states_vs_ground_truth'] = (predicted_states.mean(axis=0),
-                                                                    states_split)
