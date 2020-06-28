@@ -116,16 +116,25 @@ def draw_experiments_results(data_path):
     average_cost_ax.ticklabel_format(axis='x', style='sci', scilimits=(0, 0))
     rl_objective_ax.plot(experiment_statistics['timesteps'],
                          np.ones_like(experiment_statistics['timesteps']) * 17.5,
-                         color='orangered', ls='--', label='TRPO-Lagrangian')
+                         ls='--', label='TRPO-Lagrangian')
     mean_sum_cost_ax.plot(experiment_statistics['timesteps'],
                           np.ones_like(experiment_statistics['timesteps']) * 25.0,
-                          color='orangered', ls='--', label='TRPO-Lagrangian')
+                          ls='--', label='TRPO-Lagrangian')
     average_cost_ax.plot(experiment_statistics['timesteps'],
                          np.ones_like(experiment_statistics['timesteps']) * 0.025,
-                         color='orangered', ls='--', label='TRPO-Lagrangian')
+                         ls='--', label='TRPO-Lagrangian')
+    rl_objective_ax.plot(experiment_statistics['timesteps'],
+                         np.ones_like(experiment_statistics['timesteps']) * 25.0,
+                         ls='--', label='TRPO')
+    mean_sum_cost_ax.plot(experiment_statistics['timesteps'],
+                          np.ones_like(experiment_statistics['timesteps']) * 55.0,
+                          ls='--', label='TRPO')
+    average_cost_ax.plot(experiment_statistics['timesteps'],
+                         np.ones_like(experiment_statistics['timesteps']) * 0.06,
+                         ls='--', label='TRPO')
 
-    fig.legend(*rl_objective_ax.get_legend_handles_labels(), loc='upper center', mode='extand')
-    fig.subplots_adjust(left=0.05, right=0.95, bottom=0.15, wspace=0.23)
+    fig.legend(*rl_objective_ax.get_legend_handles_labels(), loc='upper center', ncol=len(experiment_dirs) + 2)
+    fig.subplots_adjust(left=0.05, right=0.95, wspace=0.23)
     plt.show()
 
 
