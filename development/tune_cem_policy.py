@@ -67,7 +67,9 @@ def main():
     parser.add_argument('--config_dir', type=str, required=True)
     parser.add_argument('--config_basename', type=str, required=True)
     parser.add_argument('--visualize', action='store_true')
+    parser.add_argument('--cuda_device', type=str, default='0')
     args = parser.parse_args()
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_device
     experiment_log_dir = args.log_dir + '/' + args.name + '_' + log_dir_suffix
     os.makedirs(experiment_log_dir, exist_ok=True)
     init_loggging(args.log_level)
