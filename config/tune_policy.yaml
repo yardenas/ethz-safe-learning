@@ -13,3 +13,6 @@ options:
   environment: MbrlSafexp-PointSimpleGoal1-v0
 
 
+models:
+  mlp_ensemble:
+    ensemble_size: 5
