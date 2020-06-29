@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-from setuptools import setup
 import sys
+
+from setuptools import setup
 
 assert sys.version_info.major == 3 and sys.version_info.minor >= 6, \
     "SIMBA relies on Safety Gym which is designed to work with Python 3.6 and greater. " \
@@ -19,7 +20,7 @@ setup(
         'numpy~=1.17.4',
         'seaborn==0.8.1',
         'tensorflow>=2.1.0',
-	'tensorflow-probability',
+        'tensorflow-probability',
         'pyyaml~=5.3.1',
         'tensorboardx==1.8',
         'scipy~=1.4.1',

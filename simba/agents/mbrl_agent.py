@@ -116,23 +116,3 @@ class MbrlAgent(BaseAgent):
             action_space=environment.action_space,
             sampling_propagation=sampling_propagation,
             **model_params)
-
-    def make_evaluation_metrics(self, ground_truth_trajectories):
-        squared_errors = []
-        for evaluation_trajecty in ground_truth_trajectories:
-            ground_truth_states = evaluation_trajecty['observation']
-            action_sequences = evaluation_trajecty['action']
-            # Breaking into horizon-length trajectories.
-            ground_truth_states_split = np.array_split(
-                ground_truth_states, max(ground_truth_states.shape[0] // self.policy.horizon, 1), axis=0)
-            action_sequences_split = np.array_split(
-               action_sequences, max(action_sequences.shape[0] // self.policy.horizon, 1), axis=0)
-            for (states_split, actions_split) in zip(ground_truth_states_split, action_sequences_split):
-                start_state = np.tile(states_split[0, ...], (self.policy.particles, 1))
-                action_sequence = np.tile(actions_split, (self.policy.particles, 1, 1))
-                predicted_states = self.model.simulate_trajectories(
-                    start_state, action_sequence).reshape(
-                    (self.policy.particles, states_split.shape[0] + 1, states_split.shape[1]))
-                predicted_states = predicted_states[:, :-1, :]
-                squared_errors.append(((predicted_states.mean(axis=0) - states_split) ** 2).mean(axis=(0, 1)))
-        self.training_report['mse'] = np.array(squared_errors).mean()

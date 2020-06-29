@@ -90,11 +90,6 @@ class MbrlSafetyGym(MbrlEnv):
         if self.observe_gremlins:
             observation[self.sensor_offset_table['gremlins_lidar']] = \
                 1.0 - observation[self.sensor_offset_table['gremlins_lidar']]
-        # print("----Start-----")
-        # true_closest = min(map(lambda pos: self.env.dist_xy(pos[:2]), self.env.hazards_pos))
-        # print("True", true_closest)
-        # print("Fake", self._scorer.goal_distance_metric(np.expand_dims(observation, axis=0)))
-        # print("----End-----")
         return observation
 
     def step(self, action):

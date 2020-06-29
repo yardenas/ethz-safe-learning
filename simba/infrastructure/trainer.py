@@ -76,7 +76,6 @@ class RLTrainer(object):
             sum_rewards_stddev=train_return_values.std(),
             mean_sum_costs=sum_costs.mean()
         ))
-        #predicted_trajectory, ground_truth_trajectory = report.pop('predicted_states_vs_ground_truth')
         training_step = report.pop('total_training_steps')
         for key, value in report.items():
             self.training_logger.log_scalar(value, key, training_step)
