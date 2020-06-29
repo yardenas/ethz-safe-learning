@@ -10,6 +10,7 @@ class TransitionModel(BaseModel):
                  observation_space,
                  action_space,
                  scale_features,
+                 sampling_propagation,
                  **kwargs):
         super().__init__(observation_space.shape[0] + action_space.shape[0],
                          observation_space.shape[0])
@@ -21,6 +22,7 @@ class TransitionModel(BaseModel):
         self.observation_space = observation_space
         self.action_space = action_space
         self.scale_features = scale_features
+        self.sampling_propagation = sampling_propagation
         self.observation_space_dim = observation_space.shape[0]
         self.action_space_dim = action_space.shape[0]
         self.inputs_min = tf.concat([observation_space.low, action_space.low], axis=0)
@@ -70,7 +72,7 @@ class TransitionModel(BaseModel):
             s_t_a_t_scaled = self.scale(tf.concat([s_t, a_t], axis=1))
             # The model predicts s_t_1 - s_t hence we add here the previous state.
             mus, sigmas, d_s_t = self.model(s_t_a_t_scaled)
-            s_t += d_s_t
+            s_t += d_s_t if self.sampling_propagation else mus
         trajectories = trajectories.write(horizon, s_t)
         return tf.transpose(trajectories.stack(), [1, 0, 2])
 

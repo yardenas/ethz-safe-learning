@@ -11,3 +11,4 @@ agents:
     policy: safe_cem_mpc
     model: mlp_ensemble
     scale_features: True
+    sampling_propagation: True

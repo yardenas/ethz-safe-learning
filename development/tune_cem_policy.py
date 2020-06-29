@@ -68,14 +68,15 @@ def main():
     parser.add_argument('--config_basename', type=str, required=True)
     parser.add_argument('--visualize', action='store_true')
     parser.add_argument('--cuda_device', type=str, default='0')
+    parser.add_argument('--seed', type=int, default=0)
     args = parser.parse_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_device
     experiment_log_dir = args.log_dir + '/' + args.name + '_' + log_dir_suffix
     os.makedirs(experiment_log_dir, exist_ok=True)
     init_loggging(args.log_level)
     params = load_config_or_die(args.config_dir, args.config_basename)
-    np.random.seed(params['options']['seed'])
-    tf.random.set_seed(params['options']['seed'])
+    np.random.seed(args.seed)
+    tf.random.set_seed(args.seed)
     logging.getLogger('simba').info("Startning a training session with parameters:\n" +
                                     pretty_print(params))
     dump_string(pretty_print(params) + '\n' +

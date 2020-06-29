@@ -7,9 +7,11 @@ options:
     eval_episode_length: 1000
     training_logger_params:
       fps: 60
-  seed: 123
   train_iterations: 125
   agent: mbrl_agent
   environment: MbrlSafexp-PointSimpleGoal1-v0
 
+agents:
+  mbrl_agent:
+    sampling_propagation: False
 
