@@ -18,10 +18,11 @@ def main():
     parser.add_argument('--log_level', type=str, default='INFO')
     parser.add_argument('--config_dir', type=str, required=True)
     parser.add_argument('--config_basename', type=str, required=True)
-    parser.add_argument('--cuda_device', type=str, default='0')
+    parser.add_argument('--cuda_device', type=str)
     parser.add_argument('--seed', type=int, default=1)
     args = parser.parse_args()
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_device
+    if args.cuda_device is not None:
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_device
     experiment_log_dir = args.log_dir + '/' + args.name + '_' + log_dir_suffix
     os.makedirs(experiment_log_dir, exist_ok=True)
     init_loggging(args.log_level)
