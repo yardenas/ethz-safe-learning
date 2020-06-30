@@ -2,7 +2,7 @@
 
 ![Imgur](https://i.imgur.com/cluVYeS.gif)
 
-This is an implementation of a model-based reinforcement learning agent that predicts the safety and scores and actions by learning an ensemble of neural networks that estimate the dynamics. We demonstrate a higher sample efficiency and comparable results to those reported in [Safety Gym](https://openai.com/blog/safety-gym/) in the PointGoal-v1 task.
+This is an implementation of a model-based reinforcement learning agent that predicts the safety and scores and actions by learning the environment's dynamics using an ensemble of neural networks. This algorithm achieves higher sample efficiency and comparable results to those reported in [Safety Gym](https://openai.com/blog/safety-gym/) in the PointGoal-v1 task.
 
 
 ## To Reproduce
