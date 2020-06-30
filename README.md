@@ -1,6 +1,6 @@
 # Safe Model-Based Reinforcement Learning via Ensembles and Model Predictive Control
 
-![Imgur](https://i.imgur.com/cluVYeS.gif)
+![Imgur](https://i.imgur.com/6F47oFY.gif)
 
 This is an implementation of a model-based reinforcement learning agent that predicts the safety and scores and actions by learning the environment's dynamics using an ensemble of neural networks. This algorithm achieves higher sample efficiency and comparable results to those reported in [Safety Gym](https://openai.com/blog/safety-gym/) in the PointGoal-v1 task.
 
