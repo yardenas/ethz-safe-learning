@@ -17,7 +17,7 @@ setup(
         'joblib==0.14.0',
         'matplotlib==3.1.1',
         'mujoco_py==2.0.2.7',
-        'numpy~=1.17.4',
+        'numpy~=1.19',
         'seaborn==0.8.1',
         'tensorflow>=2.1.0',
         'tensorflow-probability',
