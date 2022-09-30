@@ -14,7 +14,7 @@ setup(
     install_requires=[
         'safety-gym==0.0.0',
         'gym~=0.15.3',
-        'joblib==0.14.0',
+        'joblib==1.2.0',
         'matplotlib==3.1.1',
         'mujoco_py==2.0.2.7',
         'numpy~=1.19',
